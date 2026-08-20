@@ -1,0 +1,86 @@
+name: Validate
+
+# Det genbrugelige workflow afprøves ellers først når et projekt kalder det,
+# så en syntaksfejl i main rammer alle projekter samtidig — og opdages af den
+# der pusher næste gang, ikke af den der lavede fejlen.
+#
+# Denne kørsel bruger kun checkout og python. Ingen tredjepartsaction at pinne
+# og bumpe, så den skaber ikke selv det vedligehold den skal beskytte imod.
+
+on:
+  pull_request:
+    paths: [ '.github/workflows/**' ]
+  push:
+    branches: [ 'main' ]
+    paths: [ '.github/workflows/**' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validér docker-publish.yaml
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          python - <<'PY'
+          import sys, yaml
+
+          path = '.github/workflows/docker-publish.yaml'
+          with open(path, encoding='utf-8') as fh:
+              wf = yaml.safe_load(fh)
+
+          fejl = []
+
+          # YAML læser den nøgne nøgle `on:` som boolean True.
+          triggers = wf.get('on', wf.get(True)) or {}
+          if 'workflow_call' not in triggers:
+              fejl.append('mangler `on: workflow_call` - er ikke laengere genbrugeligt, '
+                          'og alle kaldere vil fejle')
+
+          wc = triggers.get('workflow_call') or {}
+          job = (wf.get('jobs') or {}).get('build') or {}
+          job_outputs = set(job.get('outputs') or {})
+
+          # Et workflow_call-output der peger paa et job-output der ikke findes,
+          # bliver en tom streng hos kalderen i stedet for en fejl.
+          for navn, spec in (wc.get('outputs') or {}).items():
+              vaerdi = str((spec or {}).get('value', ''))
+              if 'jobs.build.outputs.' in vaerdi:
+                  ref = vaerdi.split('jobs.build.outputs.')[1].split('}')[0].strip()
+                  if ref not in job_outputs:
+                      fejl.append(f'output `{navn}` peger paa jobs.build.outputs.{ref}, '
+                                  f'som ikke findes. Kalderen faar en tom streng.')
+
+          for noegle in ('permissions', 'timeout-minutes'):
+              if noegle not in job:
+                  fejl.append(f'jobbet mangler `{noegle}`')
+
+          for navn in ('image_name', 'platforms', 'dockerfile', 'sign'):
+              if navn not in (wc.get('inputs') or {}):
+                  fejl.append(f'input `{navn}` er forsvundet - kaldere der saetter '
+                              f'det vil fejle')
+
+          # Bindestreger i inputnavne laeses som minus i GitHub-udtryk.
+          for navn in (wc.get('inputs') or {}):
+              if '-' in navn:
+                  fejl.append(f'input `{navn}` indeholder bindestreg. '
+                              f'I udtryk laeses den som minus - brug _ i stedet.')
+
+          if fejl:
+              for f in fejl:
+                  print(f'::error file={path}::{f}')
+              sys.exit(1)
+
+          print(f'{path}: ok')
+          print('  inputs :', ', '.join(sorted(wc.get('inputs') or {})))
+          print('  outputs:', ', '.join(sorted(wc.get('outputs') or {})))
+          PY

@@ -1,0 +1,23 @@
+# Bumper de SHA-pinnede actions i .github/workflows og opdaterer
+# versionskommentaren bagved. Det er hele grunden til at workflowet bor her
+# og ikke som en kopi i hvert projekt — så lad Dependabot gøre arbejdet.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    # "/" dækker .github/workflows for denne ecosystem.
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "actions"
+    open-pull-requests-limit: 3
+    groups:
+      # Docker-actionerne udgives i takt. Én PR frem for fire.
+      docker:
+        patterns:
+          - "docker/*"
+      sigstore:
+        patterns:
+          - "sigstore/*"

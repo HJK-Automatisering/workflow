@@ -44,10 +44,6 @@ on:
         description: 'Ekstra build-args, én pr. linje. ADVARSEL: build-args ender som ENV i det færdige image og kan læses af alle der kan pulle det. Aldrig hemmeligheder her.'
         type: string
         default: ''
-      runs_on:
-        description: 'Runner-label.'
-        type: string
-        default: 'ubuntu-latest'
     outputs:
       digest:
         description: 'Image-digest. Brug denne til deploy og verifikation — ikke et tag. Tom på pull_request, hvor der bygges uden at pushe: læg et `if:` på deploy-jobbet i stedet for at lade det fejle på en tom streng.'
@@ -64,7 +60,13 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ inputs.runs_on }}
+    # Fastlåst med vilje. Runneren er amd64, og det er den antagelse QEMU-trinnet
+    # nedenfor hviler på: er runneren amd64, er `platforms: linux/amd64` altid
+    # native og QEMU altid unødvendigt. Gøres runneren til et input, holder den
+    # slutning ikke længere, og et arm-runner-build fejler med en fejlbesked der
+    # peger på Dockerfilen i stedet for på et manglende trin.
+    # Skal der en dag bruges en anden runner, tilføj inputtet OG ret betingelsen.
+    runs-on: ubuntu-latest
 
     # Standarden er 6 timer. Et hængende emuleret build brænder hele kvoten,
     # så det skal fejle længe før.
@@ -104,6 +106,9 @@ jobs:
       # Installerer binfmt-handlerne, så BuildKit kan køre fremmede
       # arkitekturer under emulering. setup-buildx gør det IKKE selv, og uden
       # dette fejler ethvert build for andet end runnerens egen platform.
+      #
+      # Betingelsen er korrekt fordi runneren er fastlåst til amd64 ovenfor:
+      # alt andet end præcis `linux/amd64` indebærer mindst én fremmed platform.
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
         if: inputs.platforms != 'linux/amd64'
