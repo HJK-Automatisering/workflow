@@ -1,0 +1,213 @@
+name: Docker (reusable)
+
+# Genbrugeligt workflow. Kaldes af projekternes egen
+# .github/workflows/docker-publish.yaml — se caller-skabelonen i agenter-repoet.
+#
+# Formålet med at have den her, og ikke som en kopi i hvert projekt, er at
+# action-versionerne nedenfor er pinnet til commit-SHA. De skal bumpes med
+# tiden, og det skal kunne gøres ét sted.
+#
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support documentation.
+
+on:
+  workflow_call:
+    # Inputnavne bruger _ og ikke -. I GitHub-udtryk læses `inputs.image-name`
+    # som et minus, og så skal man skrive inputs['image-name'] overalt.
+    inputs:
+      image_name:
+        description: 'Imagenavn uden registry. Tom = <org>/<repo> for det kaldende repo.'
+        type: string
+        default: ''
+      registry:
+        description: 'Container-registry.'
+        type: string
+        default: 'ghcr.io'
+      context:
+        description: 'Build-kontekst.'
+        type: string
+        default: '.'
+      dockerfile:
+        description: 'Sti til Dockerfile.'
+        type: string
+        default: './Dockerfile'
+      platforms:
+        description: 'Målplatforme. Tilføj kun arm64 hvis noget faktisk kører på arm — alt der ikke er runnerens egen platform bygger under QEMU-emulering og tager mange gange så lang tid.'
+        type: string
+        default: 'linux/amd64'
+      sign:
+        description: 'Signér imaget med cosign. Slå kun fra hvis registryet ikke understøtter det.'
+        type: boolean
+        default: true
+      extra_build_args:
+        description: 'Ekstra build-args, én pr. linje. ADVARSEL: build-args ender som ENV i det færdige image og kan læses af alle der kan pulle det. Aldrig hemmeligheder her.'
+        type: string
+        default: ''
+      runs_on:
+        description: 'Runner-label.'
+        type: string
+        default: 'ubuntu-latest'
+    outputs:
+      digest:
+        description: 'Image-digest. Brug denne til deploy og verifikation — ikke et tag. Tom på pull_request, hvor der bygges uden at pushe: læg et `if:` på deploy-jobbet i stedet for at lade det fejle på en tom streng.'
+        value: ${{ jobs.build.outputs.digest }}
+      version:
+        description: 'Den version metadata-action udledte.'
+        value: ${{ jobs.build.outputs.version }}
+      tags:
+        description: 'Alle tags der blev bygget, ét pr. linje.'
+        value: ${{ jobs.build.outputs.tags }}
+
+# Bemærk: ingen `concurrency` her. Den hører i det kaldende workflow, hvor
+# grenen og kørslen findes. Se caller-skabelonen.
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs_on }}
+
+    # Standarden er 6 timer. Et hængende emuleret build brænder hele kvoten,
+    # så det skal fejle længe før.
+    timeout-minutes: 45
+
+    # Kan ikke overstige det kaldende jobs rettigheder — de skal derfor også
+    # sættes i caller-skabelonen. Står de kun her, fejler push til GHCR i
+    # organisationer hvor standardrettigheden er read-only.
+    permissions:
+      contents: read
+      packages: write
+      # Bruges til identity-challenge mod sigstore/fulcio uden for PR.
+      id-token: write
+
+    outputs:
+      digest: ${{ steps.build-and-push.outputs.digest }}
+      version: ${{ steps.meta.outputs.version }}
+      tags: ${{ steps.meta.outputs.tags }}
+
+    env:
+      REGISTRY: ${{ inputs.registry }}
+      # github-konteksten er det KALDENDE repos, så github.repository peger
+      # rigtigt uden at skulle sendes ind.
+      IMAGE_NAME: ${{ inputs.image_name || github.repository }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # https://github.com/sigstore/cosign-installer
+      - name: Install cosign
+        if: ${{ inputs.sign && github.event_name != 'pull_request' }}
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: 'v3.1.3'
+
+      # Installerer binfmt-handlerne, så BuildKit kan køre fremmede
+      # arkitekturer under emulering. setup-buildx gør det IKKE selv, og uden
+      # dette fejler ethvert build for andet end runnerens egen platform.
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        if: inputs.platforms != 'linux/amd64'
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      # BuildKit-builder, nødvendig for multi-platform og gha-cache.
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          # GITHUB_TOKEN er automatisk tilgængeligt i et genbrugeligt workflow.
+          # Der er ikke brug for `secrets: inherit` i det kaldende workflow.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Uden denne blok bruges standardreglerne, og et push til main giver
+          # kun det mutable :main — intet at rulle tilbage til.
+          tags: |
+            # rullende tag pr. gren: :main
+            type=ref,event=branch
+            # :pr-123, bygges men pushes ikke
+            type=ref,event=pr
+            # immutabelt pr. commit: :sha-a1b2c3d — brug dette til rollback
+            type=sha
+            # v1.2.3 -> :1.2.3 og :1.2, samt :latest via flavor latest=auto.
+            # Fyrer kun på tag-push, så caller-workflowet skal have
+            # on.push.tags — ellers ser man aldrig disse tags.
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      # https://github.com/docker/build-push-action
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          # PR bygger for at fange fejl, men pusher ikke.
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: ${{ inputs.platforms }}
+          # Ender som ENV i imaget. Log dem ved opstart, så en logvisning kan
+          # sige hvilken build der kører. Dockerfilen skal have tilsvarende ARG.
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            GIT_SHA=${{ github.sha }}
+            ${{ inputs.extra_build_args }}
+
+      # https://github.com/sigstore/cosign
+      #
+      # Keyless-signering lægger som standard signaturen i den offentlige
+      # Rekor-log, og certifikatet indeholder repo, workflow-sti og commit-SHA.
+      # For private repoer ville det afsløre både at imaget findes og hvilken
+      # digest det har, så der springes tlog'en over — se nedenfor.
+      #
+      # Alle tags peger på samme digest, så der signeres én gang. Tidligere
+      # løb dette over hvert tag og signerede det samme igen og igen.
+      - name: Sign the published Docker image
+        if: ${{ inputs.sign && github.event_name != 'pull_request' }}
+        env:
+          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+          # Tom for eventtyper uden repository i payloaden. Så fejler steppet
+          # frem for at gætte og risikere en utilsigtet Rekor-upload.
+          IS_PRIVATE: ${{ github.event.repository.private }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${IS_PRIVATE}" ]; then
+            echo "::error::Kan ikke afgøre repo-synlighed (github.event.repository.private er tom for event '${EVENT_NAME}'). Signering afbrudt frem for at gætte."
+            exit 1
+          fi
+
+          # GHCR kræver små bogstaver, og github.repository indeholder store
+          # (HJK-Automatisering). metadata-action konverterer selv sine tags,
+          # men her bygges referencen i hånden.
+          image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+
+          if [ "${IS_PRIVATE}" = "true" ]; then
+            # Signaturen ligger kun som OCI-artefakt ved siden af imaget.
+            # Verifikation kræver derfor --insecure-ignore-tlog:
+            #   cosign verify --insecure-ignore-tlog \
+            #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            #     --certificate-identity-regexp '^https://github\.com/ORG/' \
+            #     IMAGE@DIGEST
+            echo "Privat repo — signerer uden upload til den offentlige Rekor-log."
+            cosign sign --yes --tlog-upload=false "${image}@${DIGEST}"
+          else
+            cosign sign --yes "${image}@${DIGEST}"
+          fi

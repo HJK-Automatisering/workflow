@@ -1,0 +1,3 @@
+# Workflow-filerne indeholder shell i `run:`-blokke. LF i repoet uanset
+# hvilken platform der committer.
+* text=auto eol=lf
