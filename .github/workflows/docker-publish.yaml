@@ -174,10 +174,14 @@ jobs:
 
       # https://github.com/sigstore/cosign
       #
-      # Keyless-signering lægger som standard signaturen i den offentlige
-      # Rekor-log, og certifikatet indeholder repo, workflow-sti og commit-SHA.
-      # For private repoer ville det afsløre både at imaget findes og hvilken
-      # digest det har, så der springes tlog'en over — se nedenfor.
+      # Keyless-signering kræver upload til den offentlige Rekor-log. cosign v3
+      # afviser --tlog-upload=false sammen med keyless: uden en logpost findes
+      # der intet vidne om hvornår det kortlivede certifikat var gyldigt, og
+      # signaturen kan derfor ikke verificeres bagefter.
+      #
+      # Prisen er at digest, repo-sti og workflow-sti bliver offentligt synlige
+      # i Rekor — også for private repoer. Skal det undgås, kræver det
+      # nøglebaseret signering. Det kan ikke klares med et flag.
       #
       # Alle tags peger på samme digest, så der signeres én gang. Tidligere
       # løb dette over hvert tag og signerede det samme igen og igen.
@@ -187,32 +191,17 @@ jobs:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-          # Tom for eventtyper uden repository i payloaden. Så fejler steppet
-          # frem for at gætte og risikere en utilsigtet Rekor-upload.
-          IS_PRIVATE: ${{ github.event.repository.private }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-
-          if [ -z "${IS_PRIVATE}" ]; then
-            echo "::error::Kan ikke afgøre repo-synlighed (github.event.repository.private er tom for event '${EVENT_NAME}'). Signering afbrudt frem for at gætte."
-            exit 1
-          fi
 
           # GHCR kræver små bogstaver, og github.repository indeholder store
           # (HJK-Automatisering). metadata-action konverterer selv sine tags,
           # men her bygges referencen i hånden.
           image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
 
-          if [ "${IS_PRIVATE}" = "true" ]; then
-            # Signaturen ligger kun som OCI-artefakt ved siden af imaget.
-            # Verifikation kræver derfor --insecure-ignore-tlog:
-            #   cosign verify --insecure-ignore-tlog \
-            #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            #     --certificate-identity-regexp '^https://github\.com/ORG/' \
-            #     IMAGE@DIGEST
-            echo "Privat repo — signerer uden upload til den offentlige Rekor-log."
-            cosign sign --yes --tlog-upload=false "${image}@${DIGEST}"
-          else
-            cosign sign --yes "${image}@${DIGEST}"
-          fi
+          # Verificér med:
+          #   cosign verify \
+          #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+          #     --certificate-identity-regexp '^https://github\.com/ORG/' \
+          #     IMAGE@DIGEST
+          cosign sign --yes "${image}@${DIGEST}"
