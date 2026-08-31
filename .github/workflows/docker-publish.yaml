@@ -205,3 +205,24 @@ jobs:
           #     --certificate-identity-regexp '^https://github\.com/ORG/' \
           #     IMAGE@DIGEST
           cosign sign --yes "${image}@${DIGEST}"
+
+      # Imaget pushes i "Build and push" og signeres først bagefter. Fejler
+      # noget derimellem, ligger imaget allerede i registret — og alle tags,
+      # også det rullende :main, peger på det. Jobbet er rødt, men der ER
+      # publiceret noget.
+      #
+      # Uden denne besked ser det ud præcis som en almindelig byggefejl, hvor
+      # der ikke er publiceret noget. Forskellen er væsentlig, og den skal stå
+      # i loggen frem for at skulle udledes.
+      - name: Rapportér efterladt image
+        if: ${{ failure() && steps.build-and-push.outputs.digest != '' }}
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          echo "::error::Kørslen er rød, men imaget blev publiceret og er IKKE signeret: ${image}@${DIGEST} — slet det, eller kør igen når årsagen er rettet."
+          echo "Følgende tags peger nu på det usignerede image:"
+          echo "${TAGS}" | sed 's/^/  /'
