@@ -10,6 +10,7 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-01 | — | Servernavnet fjernet fra docs/prompt-workflow-gitops-v2.md, og den upushede kickoff-commit rettet | Repoet er offentligt; forretningsspecifikke værdier må ikke stå i docs/, og historik kan ikke gøres privat bagefter. Kun lokal historik blev omskrevet. Godkendt af mennesket | architect |
 | 2026-10-01 | task-0001 | Opgaven er bygget; de to menneskelige testpunkter efterprøves ved første rigtige release | Ni lokale punkter dokumenteret med kørsler; testkørslen kræver udgivelse og compose-fil i app-repoet og står som emne på BOARD | architect |
 | 2026-10-01 | task-0001 | Scriptet finder med ruamel og erstatter tekst på én linje; fuld ruamel-dump afvist | Resten af filen forbliver byte for byte uændret; en dump kan ændre indrykning og linjebredde. Godkendt af mennesket | architect |
 | 2026-10-01 | task-0001 | `validate.yaml` udløses også af `scripts/**`, `tests/**` og `requirements.txt` | Scripttesten skal køre, når scriptet ændres. Udvidelse ud over opgaven, godkendt | architect |
