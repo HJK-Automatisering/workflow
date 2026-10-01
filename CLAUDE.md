@@ -10,8 +10,9 @@ Procesregler står i `AGENTS.md`. Åbent arbejde står på `docs/BOARD.md`.
 
 - GitHub Actions (YAML). Alle actions pinnet til commit-SHA med versionskommentar.
 - Python 3 i `run:`-trin til validering, kun `pyyaml`. Ingen tredjeparts-actions ud over Docker og sigstore.
-- cosign v3.1.3 til keyless signering af images mod GHCR.
-- Dependabot bumper actions ugentligt, grupperet `docker` og `sigstore`.
+- Python-scripts i `scripts/` med `ruamel.yaml`, pinnet i `requirements.txt`. Lokale Python-kald går gennem `.venv` (`.venv\Scripts\python.exe`), som ikke versionsstyres.
+- cosign v3.1.3 til keyless signering af images mod GHCR og til verifikation før udrulning.
+- Dependabot bumper actions og pip-pinnen ugentligt, grupperet `docker`, `sigstore` og `python`.
 
 ## Kommandoer og udgivelse
 
@@ -24,9 +25,14 @@ Hvordan repoet udgives (minor-tag og flyt af `v1`, `v2` ved brud, versionstags f
 | Sti | Hvad |
 |---|---|
 | `README.md` | Caller-eksempel, inputs og outputs, release, tilbagerulning, migrering og udgivelse af repoet. Forlægget for caller-skabelonen i agenter-repoet |
-| `.github/workflows/docker-publish.yaml` | Genbrugeligt build-, push- og signeringsworkflow. Outputs `digest`, `version`, `tags` |
-| `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows. Kører kun i dette repo |
-| `.github/dependabot.yml` | Bumper SHA-pinnede actions |
+| `.github/workflows/docker-publish.yaml` | Genbrugeligt build-, push- og signeringsworkflow. Outputs `digest`, `version`, `tags`, `image` |
+| `.github/workflows/deploy-update.yaml` | Genbrugeligt udrulningsworkflow. Verificerer signatur og digest og skriver `<image>:<version>` i compose-filen på `main` |
+| `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows og test af scriptet. Kører kun i dette repo |
+| `.github/dependabot.yml` | Bumper SHA-pinnede actions og pinnen i `requirements.txt` |
+| `scripts/update_compose_image.py` | Opdaterer `services.<service>.image` i en compose-fil og rører intet andet. Hentes af `deploy-update.yaml` under kørslen |
+| `tests/compose/` | Eksempelfiler, `validate.yaml` kører scriptet imod |
+| `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af `scripts/` og installeres af `deploy-update.yaml` |
+| `.venv/` | Lokalt virtuelt miljø med indholdet af `requirements.txt`. Ikke versionsstyret |
 | `.gitattributes` | LF i alt, fordi `run:`-blokke er shell |
 | `docs/` | Tavle, beslutningslog og rapporter efter `AGENTS.md` |
 | `docs/prompt-workflow-gitops-v2.md` | Opgavebeskrivelse for GitOps-udvidelsen (fase 1 og 2). Grundlag for `architect`s interview |
