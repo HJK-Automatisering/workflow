@@ -1,0 +1,22 @@
+# Det personlige, det hemmelige og det genskabelige
+.claude/settings.local.json
+.vscode/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+.venv/
+
+# Compose-filer og hemmeligheder, som workflows arbejder med. stack.env
+# genereres af Portainer og må aldrig committes.
+stack.env
+
+# Python-støj fra lint- og valideringsscripts
+__pycache__/
+*.pyc
+
+# OS og editor
+.DS_Store
+Thumbs.db
