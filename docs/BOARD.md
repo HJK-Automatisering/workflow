@@ -21,7 +21,8 @@ en rapport der har stået her i dagevis, er et fund på vej til at blive glemt.>
 
 | Nr. | Titel | Status | Kilde |
 |---|---|---|---|
-| task-0001 | <eksempel — slet linjen> | planlagt | interview |
+| task-0001 | Udrulning ved release-tag via deploy-update.yaml | planlagt | interview |
+| task-0002 | README med caller-eksempel, release- og rollback-vejledning | planlagt | interview |
 
 <`Status` er `planlagt`, `i-gang` eller `afsluttet`. `Kilde` er `interview`
 eller nummeret på den rapport opgaven kom af.>
@@ -30,7 +31,6 @@ eller nummeret på den rapport opgaven kom af.>
 
 | Emne |
 |---|
-| GitOps fase 1: `deploy-update.yaml`, `image`-output i `docker-publish.yaml`, README og caller-eksempel |
 | GitOps fase 2: `compose-lint.yaml` med lint-script, `protect_release_tags` og selvtest i `validate.yaml` |
 | Lokal validering af workflows, så `validate.yaml`s script kan køres uden GitHub Actions |
 | Udgivelsesprocedure for dette repo: hvornår `v1` flyttes, og hvornår noget kræver `v2` |
