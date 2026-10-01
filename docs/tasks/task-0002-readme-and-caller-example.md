@@ -22,7 +22,7 @@ tråd, så README er stedet, det komplette eksempel og vejledningerne står. Bag
 - [ ] README har et afsnit om, hvad der skal ændres, hvis `main` beskyttes, og fejlbeskeden fra task-0001 peger på det.
 - [ ] README beskriver, hvordan dette repo udgives: nyt minor-tag og flyt af `v1` ved additive ændringer, `v2` ved brud, og at versionstags aldrig flyttes.
 - [ ] README har en kort vejledning i at migrere en eksisterende app, der i dag deployes via Portainers web-editor.
-- [ ] `CLAUDE.md` henviser til README for kommandoer og udgivelse i stedet for at gentage dem.
+- [ ] `CLAUDE.md` henviser til README for kommandoer og udgivelse i stedet for at gentage dem, og dens stak og mappestruktur svarer til det, der ligger i repoet efter task-0001.
 
 ## Sådan bygger vi det
 `README.md` i roden, på dansk, samme tone som kommentarerne i workflow-filerne. Afsnit i denne rækkefølge:
@@ -57,7 +57,9 @@ Fund fra task-0001, der skal med:
 Kommandoer i PowerShell-venlig form: én pr. linje, ingen `&&`.
 Ingen forretningsspecifikke værdier: ingen servernavne, ingen interne adresser. Portainer-serveren omtales som "den interne Docker-server".
 
-`CLAUDE.md`: afsnittene *Kommandoer* og udgivelse forkortes til en henvisning til README.
+`CLAUDE.md`: afsnittene *Kommandoer* og udgivelse forkortes til en henvisning til README. Desuden bringes *Stak* og
+*Mappestruktur* ajour med task-0001: `deploy-update.yaml`, `scripts/update_compose_image.py`, `tests/compose/`,
+`requirements.txt`, `.venv` (lokalt, ikke versionsstyret), outputtet `image`, og Dependabot-gruppen `python`. (Tilføjet 2026-10-01 efter fund fra developer.)
 
 ## Hvad vi ikke rører
 - Ingen workflow-filer ud over kommentaren ved signeringstrinnet i `docker-publish.yaml` (se ovenfor). Dokumentationen beskriver det, task-0001 byggede; afviger den, er det en indvending, ikke en rettelse.
@@ -68,6 +70,8 @@ Ingen forretningsspecifikke værdier: ingen servernavne, ingen interne adresser.
 task-0001
 
 ## Beslutninger
+- BESLUTTET (2026-10-01, efter bygning): Jobbet hedder `build` i README og dermed i den kommende skabelon; den eksisterende skabelons `publish` omdøbes af agenter-tråden, når den kopierer. Navnet siger, hvad jobbet gør, og projekterne opdateres alligevel for at få deploy-jobbet.
+- BESLUTTET (2026-10-01, efter bygning): Portainers polling-interval omtales som produktstandard (5 min) med forbehold for stackens indstilling; `pull_request: branches: [main]` beholdes fra skabelonen; patch-tag ved rene rettelser nævnes, i tråd med kontraktens x.y.z-regler.
 - BESLUTTET: README er det komplette caller-eksempel — skabelonen i agenter-repoet opdateres af en anden tråd ud fra README, så der kun er ét forlæg at holde ajour.
 - BESLUTTET: Reserveløsninger ved beskyttet `main` dokumenteres, implementeres ikke — intet behov i dag; kode uden brug rådner.
 
