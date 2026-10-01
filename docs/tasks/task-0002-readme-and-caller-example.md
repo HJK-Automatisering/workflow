@@ -1,7 +1,7 @@
 ---
 nummer: task-0002
 titel: README med caller-eksempel, release- og rollback-vejledning
-status: planlagt
+status: i-gang
 kilde: interview
 oprettet: 2026-10-01
 ---
