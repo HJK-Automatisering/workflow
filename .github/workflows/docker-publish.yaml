@@ -212,13 +212,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Verificér med:
+          # Identiteten i certifikatet (SAN) er DETTE workflows sti og ref —
+          # ikke kalderens. Kilde-repoet står i certifikatets GitHub-extension.
+          # Verificér derfor med:
           #   cosign verify \
           #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-          #     --certificate-identity-regexp '^https://github\.com/ORG/' \
+          #     --certificate-identity-regexp '^https://github\.com/HJK-Automatisering/workflow/\.github/workflows/docker-publish\.yaml@refs/tags/v' \
+          #     --certificate-github-workflow-repository <org>/<app-repo> \
           #     IMAGE@DIGEST
-          # deploy-update.yaml gør netop det, med identiteten låst til dette
-          # workflow fra et udgivet tag.
+          # deploy-update.yaml gør netop det. Omdøbes denne fil, skal regexp'en
+          # rettes med — der og i README.
           cosign sign --yes "${IMAGE}@${DIGEST}"
 
       # Imaget pushes i "Build and push" og signeres først bagefter. Fejler
