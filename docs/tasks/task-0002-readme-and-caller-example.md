@@ -44,13 +44,23 @@ tråd, så README er stedet, det komplette eksempel og vejledningerne står. Bag
 8. **Hvis `main` beskyttes:** bypass-aktør for GitHub Actions; alternativt App-token via `actions/create-github-app-token` (SHA-pinnet) og `secrets:` i workflow og kaldere; ved krav om signerede commits skift til GraphQL `createCommitOnBranch`.
 9. **Udgivelse af dette repo** og vedligehold: minor-tag og flyt af `v1`; `v2` ved brud; versionstags flyttes aldrig; `cosign-release` bumpes manuelt, når Dependabot bumper `cosign-installer`; regexp'en for cosign-identitet skal rettes, hvis `docker-publish.yaml` omdøbes; repoet skal forblive offentligt, fordi kalderne checker scripts ud herfra.
 
+Fund fra task-0001, der skal med:
+- Signaturer fra cosign v3 ligger som OCI referrers med fallback-tag `sha256-<digest>` (uden `.sig`), og certifikatet
+  står i bundle-blobben, ikke i manifestet. Skriv det i afsnittet om oprydning efter en rød kørsel: slettes et image i GHCR,
+  skal signatur-artefaktet også væk, og det hedder ikke `.sig`.
+- Vis den stramme verifikationsregel i README (identitet `^https://github\.com/HJK-Automatisering/workflow/\.github/workflows/docker-publish\.yaml@refs/tags/v`
+  plus `--certificate-github-workflow-repository <repo>`), ikke den løse `^https://github\.com/ORG/`.
+- Ret kommentaren i `.github/workflows/docker-publish.yaml` ved signeringstrinnet, så den viser samme stramme regel.
+  Det er den eneste tilladte ændring i en workflow-fil i denne opgave, og den rører kun kommentarer.
+- deploy-update logger fast ind på ghcr.io; nævn det ved inputtet `image`.
+
 Kommandoer i PowerShell-venlig form: én pr. linje, ingen `&&`.
 Ingen forretningsspecifikke værdier: ingen servernavne, ingen interne adresser. Portainer-serveren omtales som "den interne Docker-server".
 
 `CLAUDE.md`: afsnittene *Kommandoer* og udgivelse forkortes til en henvisning til README.
 
 ## Hvad vi ikke rører
-- Ingen workflow-filer. Dokumentationen beskriver det, task-0001 byggede; afviger den, er det en indvending, ikke en rettelse.
+- Ingen workflow-filer ud over kommentaren ved signeringstrinnet i `docker-publish.yaml` (se ovenfor). Dokumentationen beskriver det, task-0001 byggede; afviger den, er det en indvending, ikke en rettelse.
 - Caller-skabelonen i agenter-repoet. README-eksemplet er forlægget, som den anden tråd kopierer fra.
 - Ingen tags oprettes eller flyttes.
 

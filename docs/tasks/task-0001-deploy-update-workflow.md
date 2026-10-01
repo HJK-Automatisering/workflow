@@ -1,7 +1,7 @@
 ---
 nummer: task-0001
 titel: Udrulning ved release-tag via deploy-update.yaml
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-10-01
 ---
@@ -20,15 +20,15 @@ afsnittet *Fase 1*; denne opgave dækker krav 3 til 7 deri.
 
 Efterprøvet af developer lokalt og i dette repo:
 
-- [ ] Build-workflowet leverer image-navnet som et nyt output, og intet eksisterende input eller output er ændret.
-- [ ] Et nyt genbrugeligt workflow kan opdatere image-feltet på én service i en compose-fil uden at ændre andet i filen, heller ikke kommentarer eller formatering.
-- [ ] Et tag, der ikke er præcis tre tal efter `v`, fører til en grøn kørsel uden ændring og med en tydelig besked.
-- [ ] Et tag, der ikke ligger på `main`, afvises med en dansk fejlbesked.
-- [ ] Et image, der ikke er signeret af det fælles build-workflow fra et udgivet tag, afvises.
-- [ ] Står versionen allerede i compose-filen, afsluttes kørslen grønt uden commit.
-- [ ] Afvises push til `main`, peger fejlbeskeden på README-afsnittet om beskyttede grene.
-- [ ] Valideringen i dette repo tjekker også det nye workflow med de samme strukturkrav og er grøn.
-- [ ] Identiteten i cosign-certifikatet er dokumenteret i developers noter, og cosign-reglen passer til den.
+- [x] Build-workflowet leverer image-navnet som et nyt output, og intet eksisterende input eller output er ændret.
+- [x] Et nyt genbrugeligt workflow kan opdatere image-feltet på én service i en compose-fil uden at ændre andet i filen, heller ikke kommentarer eller formatering.
+- [x] Et tag, der ikke er præcis tre tal efter `v`, fører til en grøn kørsel uden ændring og med en tydelig besked.
+- [x] Et tag, der ikke ligger på `main`, afvises med en dansk fejlbesked.
+- [x] Et image, der ikke er signeret af det fælles build-workflow fra et udgivet tag, afvises.
+- [x] Står versionen allerede i compose-filen, afsluttes kørslen grønt uden commit.
+- [x] Afvises push til `main`, peger fejlbeskeden på README-afsnittet om beskyttede grene.
+- [x] Valideringen i dette repo tjekker også det nye workflow med de samme strukturkrav og er grøn.
+- [x] Identiteten i cosign-certifikatet er dokumenteret i developers noter, og cosign-reglen passer til den.
 
 Efterprøves af mennesket ved testkørsel på ba-bfo-fagligt-ledelsestilsyn, når det repo har fået
 compose-fil og opdateret caller:
@@ -113,6 +113,9 @@ og det skrives som indvending, så architect kan tage stilling. Log ud af regist
 intet
 
 ## Beslutninger
+- BESLUTTET (2026-10-01, efter bygning): Scriptets metode godkendt — ruamel finder linje og kolonne, selve ændringen er en tekstudskiftning på den linje, og resultatet parses igen før skrivning. Fuld ruamel-dump afvist, fordi den kan ændre indrykning og linjebredde i filer uden ruamels standardstil.
+- BESLUTTET (2026-10-01, efter bygning): `validate.yaml` kører også ved ændringer i `scripts/**`, `tests/**` og `requirements.txt` — ellers kører scripttesten ikke, når scriptet ændres.
+- BESLUTTET (2026-10-01, efter bygning): deploy-update logger fast ind på ghcr.io frem for at udlede registryet af image-navnet — GHCR er det eneste registry i brug. Dokumenteres i README.
 - BESLUTTET: Kun `GITHUB_TOKEN`, ingen App-token, ingen `secrets:` — `main` er ubeskyttet i de berørte repos, og commits med `GITHUB_TOKEN` udløser ikke nye kørsler. Reserveløsninger dokumenteres kun i README (task-0002).
 - BESLUTTET: Scriptet ligger som fil og hentes med `job_workflow_sha` — gør det testbart lokalt og i `validate.yaml`, og fase 2's lint-script følger samme mønster. Inline-Python i `run:` afvist som uvedligeholdeligt ved denne størrelse.
 - BESLUTTET: `ruamel.yaml` frem for pyyaml eller `sed` — bevarer kommentarer og formatering i en fil, Portainer og mennesker læser. `sed` afvist som skrøbeligt over for indrykning og dubletter.
