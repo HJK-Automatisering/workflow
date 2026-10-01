@@ -80,5 +80,53 @@ task-0001
 ## Developers noter
 
 ### Hvad er lavet
+
+Gren `task-0002-readme-and-caller-example` oprettet fra `main` (grenen manglede). Fire commits (`da16bb6`, `7bc6f22`, `65e3716`, `f5a55b6`) plus denne note. Intet pushet, ingen tags.
+
+**Filer**
+
+- `README.md` — ny. Afsnit i opgavens rækkefølge: Hvad repoet er (med filtabel og hvorfor repoet skal forblive offentligt), Caller-eksempel, Inputs og outputs (tabeller for begge workflows med standardværdier, rettigheder i kalderen, og den stramme verifikationsregel som kørbar PowerShell-blok), Release (trin for trin, Portainer-poll), Tilbagerulning (`git revert`, forbehold om databasemigrering, flyt aldrig tags), Efter en release (ingen tilbagemelding fra Portainer; tre tjek; oprydning efter rød kørsel inkl. cosign v3 referrers-format med tag `sha256-<digest>` uden `.sig`), Migrering af en eksisterende app (fire skridt), Hvis `main` beskyttes (a/b/c, fejlbeskeden fra deploy-update citeret), Udgivelse af dette repo og Vedligehold (minor-tag + flyt af `v1`; `v2` ved brud; versionstags flyttes aldrig; `cosign-release` bumpes manuelt i begge workflows; regexp følger filnavnet; repoet skal forblive offentligt), og referencen for compose-format med pladsholdere i stedet for app-specifikke navne.
+- `.github/workflows/docker-publish.yaml` — kun kommentaren i signeringstrinnets `run:`-blok: viser nu den stramme regexp plus `--certificate-github-workflow-repository`, forklarer at SAN er dette workflows sti, og at regexp'en skal rettes hvis filen omdøbes. `git diff` viser 7+/4− linjer, alle kommentarer; `bash -n` på alle tre `run:`-blokke er ok.
+- `CLAUDE.md` — *Kommandoer* er blevet *Kommandoer og udgivelse* med én henvisning til README; `README.md` tilføjet øverst i mappestrukturen. Intet andet rørt.
+
+**Færdig når — holdt op punkt for punkt**
+
+| Punkt | Resultat |
+|---|---|
+| Sætte et app-repo op ud fra README alene | README har caller-filens sti og indhold, Dockerfile-kravet (`ARG APP_VERSION`, `ARG GIT_SHA`), compose-filens form, Portainer-stackens opsætning og første release. Ikke efterprøvet af en udvikler — kan kun afgøres ved brug |
+| Alle inputs og outputs for begge workflows med standardværdier | Ja. Efterprøvet maskinelt: alle 7 inputs og 4 outputs for `docker-publish.yaml` og 5 inputs for `deploy-update.yaml` har en tabelrække, og hver standardværdi i tabellen matcher `default:` i workflow-filen |
+| Release, tilbagerulning, og at tilbagerulning ikke omfatter en kørt migrering | Ja, afsnittene *Release* og *Tilbagerulning* |
+| Ingen tilbagemelding fra Portainer, og hvad man tjekker | Ja, *Efter en release* |
+| Afsnit om beskyttet `main`, som fejlbeskeden peger på | Ja, overskrift *Hvis `main` beskyttes*; fejlbeskeden fra `deploy-update.yaml` er citeret i afsnittet |
+| Udgivelse af dette repo | Ja, *Udgivelse af dette repo* |
+| Migrering af eksisterende app | Ja, fire skridt |
+| `CLAUDE.md` henviser til README | Ja |
+
+**Efterprøvet** med `.venv\Scripts\python.exe` (ruamel.yaml) i et script i scratchpad, der parser caller-blokken ud af README og holder den op mod de faktiske workflow-filer:
+
+- `on:` er præcis `push.tags: ['v*.*.*']`, `pull_request`, `workflow_dispatch`; ingen `on.push.branches`.
+- `concurrency` på workflow-niveau er `${{ github.workflow }}-${{ github.ref }}` med `cancel-in-progress: true`; deploy-jobbets er `deploy-${{ github.repository }}` med `cancel-in-progress: false`.
+- Begge `uses:` matcher `HJK-Automatisering/workflow/.github/workflows/<fil>@v1`, og filerne findes. Alle `uses:` i hele README (også prosa) matcher samme mønster.
+- `build.permissions` = `contents: read, packages: write, id-token: write`; `deploy.permissions` = `contents: write, packages: read`; `deploy.needs: build`; `deploy.if` ordret som i opgaven.
+- `deploy.with` sender `service`, `image`, `digest`, `version` — alle fire påkrævede inputs i `deploy-update.yaml`, ingen ukendte; `compose_path` vist som kommentar. De tre `needs.build.outputs.*` (`image`, `digest`, `version`) findes alle som outputs i `docker-publish.yaml`. De udkommenterede `with:`-nøgler under build er alle rigtige inputs.
+- Den stramme regexp og `--certificate-github-workflow-repository` står i README, `docker-publish.yaml` og `deploy-update.yaml`; `github\.com/ORG/` findes ikke længere nogen steder.
+- Ingen `&&` eller `;`-kæder i nogen PowerShell-blok i README.
+- `##`-overskrifterne står i opgavens rækkefølge 1–9.
+
 ### Hvad er ikke lavet, og hvorfor
+
+- `validate.yaml`s Python-blok er ikke kørt lokalt — den kræver pyyaml, som ikke er i `.venv` (og ikke skal være det). Ændringen i `docker-publish.yaml` er kun kommentarer inde i en `run:`-streng, så strukturen er uændret; efterprøvet med ruamel-parse og `bash -n` i stedet.
+- Punkt 1 i *Færdig når* ("ud fra README alene") kan kun efterprøves af en udvikler, der faktisk gør det. Første lejlighed er testkørslen på BOARD.
+- Udgivelse (`v1.1.0`, flyt af `v1`) er menneskets skridt og ikke rørt.
+
+**Fund uden for opgaven (ikke rettet):**
+
+1. `CLAUDE.md`s mappestruktur er bagud efter task-0001: `deploy-update.yaml`, `scripts/`, `tests/` og `requirements.txt` mangler, og rækken for `docker-publish.yaml` nævner outputs `digest`, `version`, `tags` uden `image`. Under *Stak* nævnes Dependabot-grupperne `docker` og `sigstore`, men ikke `python`. Opgaven sagde "ret ikke andet i CLAUDE.md", så det står.
+2. Caller-skabelonen i agenter-repoet (`plugins/agents/skills/workflow/assets/docker-publish.yaml`) kalder jobbet `publish`, mens opgaven foreskriver `build` og `needs: build`. README følger opgaven. Den tråd, der opdaterer skabelonen ud fra README, skal omdøbe jobbet — det er ikke et fund i dette repo, men det bør siges videre.
+
 ### Uklart
+
+- **Jobnavn.** Som nævnt: eksemplet hedder `build`, den eksisterende skabelon `publish`. Jeg fulgte opgaven. Skal eksemplet i stedet hedde `publish` for at minimere diffen i app-repoerne, er det tre tekstrettelser i README (`jobs.build`, `needs: build`, `needs.build.outputs.*`).
+- **Portainers polling-interval.** Opgaven beder om "hvor lang tid der typisk går". Jeg har skrevet Portainers produktstandard (5 minutter) og at det faktiske interval er det, der er sat på stacken. Jeg kan ikke se, hvad der er konfigureret på den interne Docker-server, og har ikke skrevet et tal som om det var det.
+- **`pull_request: branches: ["main"]`.** Opgaven siger blot `on.pull_request`; den eksisterende skabelon har `branches: ["main"]`. Jeg beholdt skabelonens form, fordi eksemplet skulle bygge videre på den. Sig til, hvis det skal være nøgent `pull_request:`.
+- **Patch-tag.** Opgaven siger "nyt minor-tag ved additive ændringer". README siger minor-tag for additive ændringer, og tilføjer at en ren rettelse (fx en bumpet action) nøjes med et patch-tag — det er samme `x.y.z`-regel som i `AGENTS.md` og passer til de eksisterende tags `v1.0.1`/`v1.0.2`. Er det en udvidelse, I ikke vil have, slettes den sætning.
