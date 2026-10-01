@@ -85,13 +85,13 @@ task-0001
 
 ### Hvad er lavet
 
-Gren `task-0002-readme-and-caller-example` oprettet fra `main` (grenen manglede). Fire commits (`da16bb6`, `7bc6f22`, `65e3716`, `f5a55b6`) plus denne note. Intet pushet, ingen tags.
+Gren `task-0002-readme-and-caller-example` oprettet fra `main` (grenen manglede). Fem commits (`da16bb6`, `7bc6f22`, `65e3716`, `f5a55b6`, `d27e294`) plus noterne. Intet pushet, ingen tags. `d27e294` er anden runde, efter architects udvidelse af opgaven i `dd931fe`.
 
 **Filer**
 
 - `README.md` — ny. Afsnit i opgavens rækkefølge: Hvad repoet er (med filtabel og hvorfor repoet skal forblive offentligt), Caller-eksempel, Inputs og outputs (tabeller for begge workflows med standardværdier, rettigheder i kalderen, og den stramme verifikationsregel som kørbar PowerShell-blok), Release (trin for trin, Portainer-poll), Tilbagerulning (`git revert`, forbehold om databasemigrering, flyt aldrig tags), Efter en release (ingen tilbagemelding fra Portainer; tre tjek; oprydning efter rød kørsel inkl. cosign v3 referrers-format med tag `sha256-<digest>` uden `.sig`), Migrering af en eksisterende app (fire skridt), Hvis `main` beskyttes (a/b/c, fejlbeskeden fra deploy-update citeret), Udgivelse af dette repo og Vedligehold (minor-tag + flyt af `v1`; `v2` ved brud; versionstags flyttes aldrig; `cosign-release` bumpes manuelt i begge workflows; regexp følger filnavnet; repoet skal forblive offentligt), og referencen for compose-format med pladsholdere i stedet for app-specifikke navne.
 - `.github/workflows/docker-publish.yaml` — kun kommentaren i signeringstrinnets `run:`-blok: viser nu den stramme regexp plus `--certificate-github-workflow-repository`, forklarer at SAN er dette workflows sti, og at regexp'en skal rettes hvis filen omdøbes. `git diff` viser 7+/4− linjer, alle kommentarer; `bash -n` på alle tre `run:`-blokke er ok.
-- `CLAUDE.md` — *Kommandoer* er blevet *Kommandoer og udgivelse* med én henvisning til README; `README.md` tilføjet øverst i mappestrukturen. Intet andet rørt.
+- `CLAUDE.md` — *Kommandoer* er blevet *Kommandoer og udgivelse* med én henvisning til README; `README.md` tilføjet øverst i mappestrukturen (`f5a55b6`). Anden runde (`d27e294`): *Stak* nævner nu `scripts/` med `ruamel.yaml` pinnet i `requirements.txt`, at lokale Python-kald går gennem `.venv` (ikke versionsstyret), at cosign også verificerer før udrulning, og Dependabot-gruppen `python`. *Mappestruktur* har fået rækker for `deploy-update.yaml`, `scripts/update_compose_image.py`, `tests/compose/`, `requirements.txt` og `.venv/`; rækken for `docker-publish.yaml` nævner outputtet `image`, og rækkerne for `validate.yaml` og `dependabot.yml` siger at de også dækker scriptet og pip-pinnen. Alle stier i tabellen er tjekket mod repoet og findes. Designprincipper og Domænebegreber urørt.
 
 **Færdig når — holdt op punkt for punkt**
 
@@ -104,7 +104,7 @@ Gren `task-0002-readme-and-caller-example` oprettet fra `main` (grenen manglede)
 | Afsnit om beskyttet `main`, som fejlbeskeden peger på | Ja, overskrift *Hvis `main` beskyttes*; fejlbeskeden fra `deploy-update.yaml` er citeret i afsnittet |
 | Udgivelse af dette repo | Ja, *Udgivelse af dette repo* |
 | Migrering af eksisterende app | Ja, fire skridt |
-| `CLAUDE.md` henviser til README | Ja |
+| `CLAUDE.md` henviser til README, og stak og mappestruktur svarer til repoet efter task-0001 | Ja. Henvisning i `f5a55b6`; stak og mappestruktur i `d27e294` |
 
 **Efterprøvet** med `.venv\Scripts\python.exe` (ruamel.yaml) i et script i scratchpad, der parser caller-blokken ud af README og holder den op mod de faktiske workflow-filer:
 
@@ -125,12 +125,11 @@ Gren `task-0002-readme-and-caller-example` oprettet fra `main` (grenen manglede)
 
 **Fund uden for opgaven (ikke rettet):**
 
-1. `CLAUDE.md`s mappestruktur er bagud efter task-0001: `deploy-update.yaml`, `scripts/`, `tests/` og `requirements.txt` mangler, og rækken for `docker-publish.yaml` nævner outputs `digest`, `version`, `tags` uden `image`. Under *Stak* nævnes Dependabot-grupperne `docker` og `sigstore`, men ikke `python`. Opgaven sagde "ret ikke andet i CLAUDE.md", så det står.
+1. ~~`CLAUDE.md`s mappestruktur er bagud efter task-0001~~ — architect lagde det ind i opgaven (`dd931fe`), og det er rettet i `d27e294`. Står her for sporbarhed.
 2. Caller-skabelonen i agenter-repoet (`plugins/agents/skills/workflow/assets/docker-publish.yaml`) kalder jobbet `publish`, mens opgaven foreskriver `build` og `needs: build`. README følger opgaven. Den tråd, der opdaterer skabelonen ud fra README, skal omdøbe jobbet — det er ikke et fund i dette repo, men det bør siges videre.
 
 ### Uklart
 
-- **Jobnavn.** Som nævnt: eksemplet hedder `build`, den eksisterende skabelon `publish`. Jeg fulgte opgaven. Skal eksemplet i stedet hedde `publish` for at minimere diffen i app-repoerne, er det tre tekstrettelser i README (`jobs.build`, `needs: build`, `needs.build.outputs.*`).
-- **Portainers polling-interval.** Opgaven beder om "hvor lang tid der typisk går". Jeg har skrevet Portainers produktstandard (5 minutter) og at det faktiske interval er det, der er sat på stacken. Jeg kan ikke se, hvad der er konfigureret på den interne Docker-server, og har ikke skrevet et tal som om det var det.
-- **`pull_request: branches: ["main"]`.** Opgaven siger blot `on.pull_request`; den eksisterende skabelon har `branches: ["main"]`. Jeg beholdt skabelonens form, fordi eksemplet skulle bygge videre på den. Sig til, hvis det skal være nøgent `pull_request:`.
-- **Patch-tag.** Opgaven siger "nyt minor-tag ved additive ændringer". README siger minor-tag for additive ændringer, og tilføjer at en ren rettelse (fx en bumpet action) nøjes med et patch-tag — det er samme `x.y.z`-regel som i `AGENTS.md` og passer til de eksisterende tags `v1.0.1`/`v1.0.2`. Er det en udvidelse, I ikke vil have, slettes den sætning.
+intet.
+
+De fire punkter fra første runde (jobnavn `build`, Portainers polling-interval som produktstandard med forbehold, `pull_request: branches: [main]`, omtalen af patch-tag) er afgjort af architect i `dd931fe` som BESLUTTET, alle i README's nuværende form. Ingen ændring i README.
