@@ -10,3 +10,18 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-01 | — | Servernavnet fjernet fra docs/prompt-workflow-gitops-v2.md, og den upushede kickoff-commit rettet | Repoet er offentligt; forretningsspecifikke værdier må ikke stå i docs/, og historik kan ikke gøres privat bagefter. Kun lokal historik blev omskrevet. Godkendt af mennesket | architect |
+| 2026-10-01 | task-0001 | Opgaven er bygget; de to menneskelige testpunkter efterprøves ved første rigtige release | Ni lokale punkter dokumenteret med kørsler; testkørslen kræver udgivelse og compose-fil i app-repoet og står som emne på BOARD | architect |
+| 2026-10-01 | task-0001 | Scriptet finder med ruamel og erstatter tekst på én linje; fuld ruamel-dump afvist | Resten af filen forbliver byte for byte uændret; en dump kan ændre indrykning og linjebredde. Godkendt af mennesket | architect |
+| 2026-10-01 | task-0001 | `validate.yaml` udløses også af `scripts/**`, `tests/**` og `requirements.txt` | Scripttesten skal køre, når scriptet ændres. Udvidelse ud over opgaven, godkendt | architect |
+| 2026-10-01 | task-0001 | deploy-update logger fast ind på ghcr.io | Eneste registry i brug; udledning af image-navnet er ikke umagen værd nu. Nævnes i README | architect |
+| 2026-10-01 | task-0001 | Developer brugte gh-tokenet til ét læsende kald efter signaturens bundle-blob ud over login og manifest-opslag | Certifikatet lå ikke i manifestet (cosign v3 bundle-format). Inden for ånden, uden for ordlyden; rapporteret til mennesket, logget ud bagefter | architect |
+| 2026-10-01 | task-0002 | To fund fra task-0001 lagt i task-0002: cosign v3 referrers-format i oprydningsafsnittet, og den løse verifikationsregel i kommentar og README rettes | Dokumentation og kommentarer; hører i README-opgaven, ikke i et nyt nummer | architect |
+| 2026-10-01 | task-0001 | Developer må logge ind på GHCR med menneskets lokale gh-token for at læse et signaturcertifikat | Kun lokalt og kun under opgaven; identiteten afgør cosign-reglen, og det skal vides før udgivelse som v1.1.0 | architect |
+| 2026-10-01 | task-0001 | `.venv` oprettes i repoet; `requirements.txt` er eneste afhængighedsfil | Repoet får Python-scripts; kontrakten kræver virtuelt miljø til lokale kald. Intet andet Python-tilbehør | architect |
+| 2026-10-01 | task-0001 | `requirements.txt`, pip i Dependabot og `.venv` trukket frem fra fase 2 | ruamel.yaml ankommer med deploy-update, så afhængighedsstyringen skal følge med nu | architect |
+| 2026-10-01 | task-0001 | Fase 1 testes på ba-bfo-fagligt-ledelsestilsyn, ikke et demo-repo | Mennesket vil have den første rigtige app med. Compose-fil, caller og Portainer-stack i det repo ligger i andre tråde | architect |
+| 2026-10-01 | — | GitOps fase 1 delt i task-0001 (workflows) og task-0002 (README) | README kan først skrives, når workflowets form er endelig; to tråde, én afhængighed | architect |
+| 2026-10-01 | — | Der bygges kun på tag-push; ingen `on.push.branches` i caller-eksemplet | Fastholder eksisterende skabelon; deploy-commit kan dermed aldrig udløse en bygning, og `paths-ignore` bortfalder | architect |
+| 2026-10-01 | — | Kun `GITHUB_TOKEN` til deploy-commit; ingen App-token, ingen secrets | `main` er ubeskyttet i de berørte repos; reserveløsninger dokumenteres kun i README | architect |
+| 2026-10-01 | — | Caller-skabelonen i agenter-repoet opdateres af en anden tråd ud fra README | Mennesket håndterer den bro i agenter-tråden; en hook tjekker, at kaldere matcher nyeste skabelon | architect |

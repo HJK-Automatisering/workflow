@@ -1,0 +1,43 @@
+# Eksempel på en compose-fil efter deploy-kontrakten. Bruges af validate.yaml
+# til at vise, at scripts/update_compose_image.py kun rører image-linjen på
+# den angivne service — kommentarer, indrykning, anførselstegn og blanke
+# linjer skal stå som før. Ret ikke formateringen her uden at vide hvorfor:
+# variationen er med vilje.
+
+services:
+  web:
+    # Sættes af deploy-update ved release. Ret ikke i hånden.
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2  # sidste release: 2026-09-30
+    restart: unless-stopped
+    env_file:
+      - stack.env
+    networks:
+      default:
+      nginx-proxy-manager_default:
+        aliases:
+          - ba-example-app
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    image: 'postgres:16.4'
+    restart: unless-stopped
+    env_file:
+      - stack.env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    mem_limit: 1g
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  db-data:
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

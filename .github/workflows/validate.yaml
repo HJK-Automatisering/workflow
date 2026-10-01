@@ -1,6 +1,6 @@
 name: Validate
 
-# Det genbrugelige workflow afprøves ellers først når et projekt kalder det,
+# De genbrugelige workflows afprøves ellers først når et projekt kalder dem,
 # så en syntaksfejl i main rammer alle projekter samtidig — og opdages af den
 # der pusher næste gang, ikke af den der lavede fejlen.
 #
@@ -9,10 +9,10 @@ name: Validate
 
 on:
   pull_request:
-    paths: [ '.github/workflows/**' ]
+    paths: [ '.github/workflows/**', 'scripts/**', 'tests/**', 'requirements.txt' ]
   push:
     branches: [ 'main' ]
-    paths: [ '.github/workflows/**' ]
+    paths: [ '.github/workflows/**', 'scripts/**', 'tests/**', 'requirements.txt' ]
   workflow_dispatch:
 
 permissions:
@@ -27,60 +27,157 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Validér docker-publish.yaml
+      - name: Validér de genbrugelige workflows
         run: |
           set -euo pipefail
           python -m pip install --quiet pyyaml
           python - <<'PY'
           import sys, yaml
 
-          path = '.github/workflows/docker-publish.yaml'
-          with open(path, encoding='utf-8') as fh:
-              wf = yaml.safe_load(fh)
+          # Ét sæt kontroller, flere workflows. Inputs og outputs der staar her,
+          # er kontrakten udadtil: forsvinder et af dem, fejler kaldere der
+          # bruger det. Nye kan tilfoejes frit; eksisterende fjernes kun med v2.
+          WORKFLOWS = {
+              '.github/workflows/docker-publish.yaml': dict(
+                  job='build',
+                  inputs=('image_name', 'platforms', 'dockerfile', 'sign'),
+                  outputs=('digest', 'version', 'tags', 'image'),
+              ),
+              '.github/workflows/deploy-update.yaml': dict(
+                  job='deploy-update',
+                  inputs=('compose_path', 'service', 'image', 'digest', 'version'),
+                  outputs=(),
+              ),
+          }
+
+          alle_fejl = 0
+          for path, krav in WORKFLOWS.items():
+              with open(path, encoding='utf-8') as fh:
+                  wf = yaml.safe_load(fh)
+
+              fejl = []
+
+              # YAML laeser den noegne noegle `on:` som boolean True.
+              triggers = wf.get('on', wf.get(True)) or {}
+              if 'workflow_call' not in triggers:
+                  fejl.append('mangler `on: workflow_call` - er ikke laengere genbrugeligt, '
+                              'og alle kaldere vil fejle')
+
+              wc = triggers.get('workflow_call') or {}
+              jobs = wf.get('jobs') or {}
+              job_navn = krav['job']
+              job = jobs.get(job_navn) or {}
+              if not job:
+                  fejl.append(f'jobbet `{job_navn}` findes ikke - outputs og kontroller '
+                              f'nedenfor forudsaetter det')
+              job_outputs = set(job.get('outputs') or {})
+
+              # Et workflow_call-output der peger paa et job-output der ikke findes,
+              # bliver en tom streng hos kalderen i stedet for en fejl.
+              marker = f'jobs.{job_navn}.outputs.'
+              for navn, spec in (wc.get('outputs') or {}).items():
+                  vaerdi = str((spec or {}).get('value', ''))
+                  if marker in vaerdi:
+                      ref = vaerdi.split(marker)[1].split('}')[0].strip()
+                      if ref not in job_outputs:
+                          fejl.append(f'output `{navn}` peger paa {marker}{ref}, '
+                                      f'som ikke findes. Kalderen faar en tom streng.')
+
+              # Standarden er 6 timer og read-all; begge skal vaere sat bevidst,
+              # i hvert job.
+              for navn, spec in jobs.items():
+                  for noegle in ('permissions', 'timeout-minutes'):
+                      if noegle not in (spec or {}):
+                          fejl.append(f'jobbet `{navn}` mangler `{noegle}`')
+
+              for navn in krav['inputs']:
+                  if navn not in (wc.get('inputs') or {}):
+                      fejl.append(f'input `{navn}` er forsvundet - kaldere der saetter '
+                                  f'det vil fejle')
+
+              for navn in krav['outputs']:
+                  if navn not in (wc.get('outputs') or {}):
+                      fejl.append(f'output `{navn}` er forsvundet - kaldere der laeser '
+                                  f'det faar en tom streng')
+
+              # Bindestreger i inputnavne laeses som minus i GitHub-udtryk.
+              for navn in (wc.get('inputs') or {}):
+                  if '-' in navn:
+                      fejl.append(f'input `{navn}` indeholder bindestreg. '
+                                  f'I udtryk laeses den som minus - brug _ i stedet.')
+
+              if fejl:
+                  for f in fejl:
+                      print(f'::error file={path}::{f}')
+                  alle_fejl += len(fejl)
+                  continue
+
+              print(f'{path}: ok')
+              print('  inputs :', ', '.join(sorted(wc.get('inputs') or {})))
+              print('  outputs:', ', '.join(sorted(wc.get('outputs') or {})))
+
+          if alle_fejl:
+              sys.exit(1)
+          PY
+
+      # Scriptet er det deploy-update.yaml skriver i projekternes compose-filer
+      # med. Rettes det, skal det stadig kun røre image-linjen på den angivne
+      # service — ellers får alle projekter en uventet diff ved næste release.
+      - name: Afprøv scripts/update_compose_image.py
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet -r requirements.txt
+          python - <<'PY'
+          import difflib, shutil, subprocess, sys, tempfile
+          from pathlib import Path
+
+          script = 'scripts/update_compose_image.py'
+          eksempel = Path('tests/compose/deploy-example.yml')
+          nyt_image = 'ghcr.io/hjk-automatisering/example-app:9.9.9'
+
+          arbejdsfil = Path(tempfile.mkdtemp()) / eksempel.name
+          shutil.copyfile(eksempel, arbejdsfil)
+          foer = eksempel.read_text(encoding='utf-8').splitlines(keepends=True)
+
+          def koer(*args):
+              return subprocess.run([sys.executable, script, str(arbejdsfil), *args],
+                                    capture_output=True, text=True, encoding='utf-8')
 
           fejl = []
 
-          # YAML læser den nøgne nøgle `on:` som boolean True.
-          triggers = wf.get('on', wf.get(True)) or {}
-          if 'workflow_call' not in triggers:
-              fejl.append('mangler `on: workflow_call` - er ikke laengere genbrugeligt, '
-                          'og alle kaldere vil fejle')
+          # 1) Aendring: exit 0, og praecis én linje er anderledes - image-linjen paa web.
+          r = koer('web', nyt_image)
+          if r.returncode != 0:
+              fejl.append(f'forventede exit 0 ved aendring, fik {r.returncode}: {r.stderr.strip()}')
+          efter = arbejdsfil.read_text(encoding='utf-8').splitlines(keepends=True)
+          aendret = [l for l in difflib.ndiff(foer, efter) if l[:1] in ('-', '+')]
+          if len(aendret) != 2:
+              fejl.append(f'forventede praecis én aendret linje (2 diff-linjer), fik {len(aendret)}:')
+              fejl.extend('  ' + l.rstrip() for l in aendret)
+          elif not (aendret[0].startswith('-') and 'image:' in aendret[0]
+                    and 'example-app:1.4.2' in aendret[0]
+                    and aendret[1].startswith('+') and nyt_image in aendret[1]
+                    and '# sidste release' in aendret[1]):
+              fejl.append('den aendrede linje er ikke image-linjen paa web, eller kommentaren '
+                          'bag den er vaek:')
+              fejl.extend('  ' + l.rstrip() for l in aendret)
 
-          wc = triggers.get('workflow_call') or {}
-          job = (wf.get('jobs') or {}).get('build') or {}
-          job_outputs = set(job.get('outputs') or {})
+          # 2) Idempotens: samme kald igen giver exit 3 og roerer ikke filen.
+          r = koer('web', nyt_image)
+          if r.returncode != 3:
+              fejl.append(f'forventede exit 3 naar vaerdien allerede staar der, fik {r.returncode}')
+          if arbejdsfil.read_text(encoding='utf-8').splitlines(keepends=True) != efter:
+              fejl.append('filen blev aendret ved et kald der ikke skulle aendre noget')
 
-          # Et workflow_call-output der peger paa et job-output der ikke findes,
-          # bliver en tom streng hos kalderen i stedet for en fejl.
-          for navn, spec in (wc.get('outputs') or {}).items():
-              vaerdi = str((spec or {}).get('value', ''))
-              if 'jobs.build.outputs.' in vaerdi:
-                  ref = vaerdi.split('jobs.build.outputs.')[1].split('}')[0].strip()
-                  if ref not in job_outputs:
-                      fejl.append(f'output `{navn}` peger paa jobs.build.outputs.{ref}, '
-                                  f'som ikke findes. Kalderen faar en tom streng.')
-
-          for noegle in ('permissions', 'timeout-minutes'):
-              if noegle not in job:
-                  fejl.append(f'jobbet mangler `{noegle}`')
-
-          for navn in ('image_name', 'platforms', 'dockerfile', 'sign'):
-              if navn not in (wc.get('inputs') or {}):
-                  fejl.append(f'input `{navn}` er forsvundet - kaldere der saetter '
-                              f'det vil fejle')
-
-          # Bindestreger i inputnavne laeses som minus i GitHub-udtryk.
-          for navn in (wc.get('inputs') or {}):
-              if '-' in navn:
-                  fejl.append(f'input `{navn}` indeholder bindestreg. '
-                              f'I udtryk laeses den som minus - brug _ i stedet.')
+          # 3) Ukendt service: exit 1 og en ::error::-linje, ikke en traceback.
+          r = koer('findes-ikke', nyt_image)
+          if r.returncode != 1 or '::error' not in r.stderr:
+              fejl.append(f'forventede exit 1 og ::error ved ukendt service, fik '
+                          f'{r.returncode}: {r.stderr.strip()[:200]}')
 
           if fejl:
               for f in fejl:
-                  print(f'::error file={path}::{f}')
+                  print(f'::error file={script}::{f}')
               sys.exit(1)
-
-          print(f'{path}: ok')
-          print('  inputs :', ', '.join(sorted(wc.get('inputs') or {})))
-          print('  outputs:', ', '.join(sorted(wc.get('outputs') or {})))
+          print(f'{script}: ok (aendring, idempotens, ukendt service)')
           PY

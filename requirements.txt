@@ -1,0 +1,5 @@
+# Bruges af scripts/ og af deploy-update.yaml (pip install -r). Pinnet, så
+# Dependabot (pip-økosystemet) bumper den, og en ny udgave ikke sniger sig
+# ind i en udrulning ubemærket. ruamel.yaml fordi den bevarer kommentarer og
+# formatering i compose-filen — det gør pyyaml ikke.
+ruamel.yaml==0.19.1
