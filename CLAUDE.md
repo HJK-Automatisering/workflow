@@ -13,24 +13,17 @@ Procesregler står i `AGENTS.md`. Åbent arbejde står på `docs/BOARD.md`.
 - cosign v3.1.3 til keyless signering af images mod GHCR.
 - Dependabot bumper actions ugentligt, grupperet `docker` og `sigstore`.
 
-## Kommandoer
+## Kommandoer og udgivelse
 
-Der er ingen lokal build- eller testkommando. Repoet indeholder kun workflows.
-
-- **Validér:** Kører automatisk i GitHub Actions via `validate.yaml` på PR'er og push til `main`, der rører `.github/workflows/**`. Kan startes manuelt under Actions. Ingen lokal ækvivalent endnu; se BOARD.
-- **Udgiv en ny version** (additive ændringer, der ikke bryder kaldere):
-
-  ```
-  git tag v1.X.Y && git push origin v1.X.Y
-  git tag -f v1 && git push -f origin v1
-  ```
-
-  Versionstags (`v1.X.Y`) flyttes aldrig. Kun `v1` flyttes. Fjernede inputs/outputs eller ændret standardadfærd kræver `v2`.
+Der er ingen lokal build- eller testkommando. Validering kører i GitHub Actions via `validate.yaml`.
+Hvordan repoet udgives (minor-tag og flyt af `v1`, `v2` ved brud, versionstags flyttes aldrig) står i
+`README.md` under *Udgivelse af dette repo*. Gentag det ikke her.
 
 ## Mappestruktur
 
 | Sti | Hvad |
 |---|---|
+| `README.md` | Caller-eksempel, inputs og outputs, release, tilbagerulning, migrering og udgivelse af repoet. Forlægget for caller-skabelonen i agenter-repoet |
 | `.github/workflows/docker-publish.yaml` | Genbrugeligt build-, push- og signeringsworkflow. Outputs `digest`, `version`, `tags` |
 | `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows. Kører kun i dette repo |
 | `.github/dependabot.yml` | Bumper SHA-pinnede actions |
