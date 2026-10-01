@@ -1,7 +1,7 @@
 ---
 nummer: task-0002
 titel: README med caller-eksempel, release- og rollback-vejledning
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-10-01
 ---
@@ -15,14 +15,14 @@ tråd, så README er stedet, det komplette eksempel og vejledningerne står. Bag
 `docs/prompt-workflow-gitops-v2.md`, fase 1, krav 8 og 9.
 
 ## Færdig når
-- [ ] En udvikler kan ud fra README alene sætte et app-repo op til at bygge ved tag og udrulle ved release, uden at åbne workflow-filerne.
-- [ ] README beskriver alle inputs og outputs for begge genbrugelige workflows med standardværdier.
-- [ ] README beskriver, hvordan en release laves, hvordan den rulles tilbage, og at tilbagerulning ikke omfatter en kørt databasemigrering.
-- [ ] README beskriver, at der ingen tilbagemelding er fra Portainer til GitHub, og hvad man derfor skal tjekke efter en release.
-- [ ] README har et afsnit om, hvad der skal ændres, hvis `main` beskyttes, og fejlbeskeden fra task-0001 peger på det.
-- [ ] README beskriver, hvordan dette repo udgives: nyt minor-tag og flyt af `v1` ved additive ændringer, `v2` ved brud, og at versionstags aldrig flyttes.
-- [ ] README har en kort vejledning i at migrere en eksisterende app, der i dag deployes via Portainers web-editor.
-- [ ] `CLAUDE.md` henviser til README for kommandoer og udgivelse i stedet for at gentage dem, og dens stak og mappestruktur svarer til det, der ligger i repoet efter task-0001.
+- [x] En udvikler kan ud fra README alene sætte et app-repo op til at bygge ved tag og udrulle ved release, uden at åbne workflow-filerne.
+- [x] README beskriver alle inputs og outputs for begge genbrugelige workflows med standardværdier.
+- [x] README beskriver, hvordan en release laves, hvordan den rulles tilbage, og at tilbagerulning ikke omfatter en kørt databasemigrering.
+- [x] README beskriver, at der ingen tilbagemelding er fra Portainer til GitHub, og hvad man derfor skal tjekke efter en release.
+- [x] README har et afsnit om, hvad der skal ændres, hvis `main` beskyttes, og fejlbeskeden fra task-0001 peger på det.
+- [x] README beskriver, hvordan dette repo udgives: nyt minor-tag og flyt af `v1` ved additive ændringer, `v2` ved brud, og at versionstags aldrig flyttes.
+- [x] README har en kort vejledning i at migrere en eksisterende app, der i dag deployes via Portainers web-editor.
+- [x] `CLAUDE.md` henviser til README for kommandoer og udgivelse i stedet for at gentage dem, og dens stak og mappestruktur svarer til det, der ligger i repoet efter task-0001.
 
 ## Sådan bygger vi det
 `README.md` i roden, på dansk, samme tone som kommentarerne i workflow-filerne. Afsnit i denne rækkefølge:

@@ -10,6 +10,10 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-01 | task-0002 | Opgaven er bygget; README, CLAUDE.md og kommentaren ved signeringstrinnet | Alle punkter under Færdig når holder ved læsning mod workflow-filerne; caller-eksemplet er parset og matcher inputs og outputs | architect |
+| 2026-10-01 | task-0002 | Jobbet i caller-eksemplet hedder `build`; skabelonens `publish` omdøbes af agenter-tråden | Navnet siger, hvad jobbet gør; projekterne opdateres alligevel for at få deploy-jobbet | architect |
+| 2026-10-01 | task-0002 | Fund om bagud CLAUDE.md rettet inden for opgaven, ikke som nyt nummer | Opgaven var i gang og ejede allerede CLAUDE.md-ændringen; udvidet over delelinjen | architect |
+| 2026-10-01 | — | Emnet "Udgivelsesprocedure for dette repo" fjernet fra BOARD | Dækket af README-afsnittet "Udgivelse af dette repo" i task-0002 | architect |
 | 2026-10-01 | — | Servernavnet fjernet fra docs/prompt-workflow-gitops-v2.md, og den upushede kickoff-commit rettet | Repoet er offentligt; forretningsspecifikke værdier må ikke stå i docs/, og historik kan ikke gøres privat bagefter. Kun lokal historik blev omskrevet. Godkendt af mennesket | architect |
 | 2026-10-01 | task-0001 | Opgaven er bygget; de to menneskelige testpunkter efterprøves ved første rigtige release | Ni lokale punkter dokumenteret med kørsler; testkørslen kræver udgivelse og compose-fil i app-repoet og står som emne på BOARD | architect |
 | 2026-10-01 | task-0001 | Scriptet finder med ruamel og erstatter tekst på én linje; fuld ruamel-dump afvist | Resten af filen forbliver byte for byte uændret; en dump kan ændre indrykning og linjebredde. Godkendt af mennesket | architect |
