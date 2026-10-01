@@ -36,6 +36,7 @@ Der er ingen lokal build- eller testkommando. Repoet indeholder kun workflows.
 | `.github/dependabot.yml` | Bumper SHA-pinnede actions |
 | `.gitattributes` | LF i alt, fordi `run:`-blokke er shell |
 | `docs/` | Tavle, beslutningslog og rapporter efter `AGENTS.md` |
+| `docs/prompt-workflow-gitops-v2.md` | Opgavebeskrivelse for GitOps-udvidelsen (fase 1 og 2). Grundlag for `architect`s interview |
 
 ## Designprincipper, der skal holdes
 
