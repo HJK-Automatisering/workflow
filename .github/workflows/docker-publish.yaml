@@ -54,6 +54,9 @@ on:
       tags:
         description: 'Alle tags der blev bygget, ét pr. linje.'
         value: ${{ jobs.build.outputs.tags }}
+      image:
+        description: 'Fuld image-reference uden tag, med registry og små bogstaver, fx ghcr.io/hjk-automatisering/<repo>. Sendes videre til deploy-update.yaml, der skriver <image>:<version> i compose-filen.'
+        value: ${{ jobs.build.outputs.image }}
 
 # Bemærk: ingen `concurrency` her. Den hører i det kaldende workflow, hvor
 # grenen og kørslen findes. Se caller-skabelonen.
@@ -85,6 +88,7 @@ jobs:
       digest: ${{ steps.build-and-push.outputs.digest }}
       version: ${{ steps.meta.outputs.version }}
       tags: ${{ steps.meta.outputs.tags }}
+      image: ${{ steps.image.outputs.name }}
 
     env:
       REGISTRY: ${{ inputs.registry }}
@@ -95,6 +99,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # GHCR kræver små bogstaver, og github.repository indeholder store
+      # (HJK-Automatisering). metadata-action konverterer selv sine tags, men
+      # referencen til signering, fejlbesked og output bygges i hånden. Den
+      # beregnes derfor ét sted, så de tre aldrig kan komme til at pege
+      # forskelligt — og så deploy-update.yaml får præcis den reference der
+      # blev signeret.
+      - name: Beregn image-reference
+        id: image
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          set -euo pipefail
+          echo "name=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
@@ -189,22 +207,19 @@ jobs:
         if: ${{ inputs.sign && github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: |
           set -euo pipefail
-
-          # GHCR kræver små bogstaver, og github.repository indeholder store
-          # (HJK-Automatisering). metadata-action konverterer selv sine tags,
-          # men her bygges referencen i hånden.
-          image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
 
           # Verificér med:
           #   cosign verify \
           #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
           #     --certificate-identity-regexp '^https://github\.com/ORG/' \
           #     IMAGE@DIGEST
-          cosign sign --yes "${image}@${DIGEST}"
+          # deploy-update.yaml gør netop det, med identiteten låst til dette
+          # workflow fra et udgivet tag.
+          cosign sign --yes "${IMAGE}@${DIGEST}"
 
       # Imaget pushes i "Build and push" og signeres først bagefter. Fejler
       # noget derimellem, ligger imaget allerede i registret — og alle tags,
@@ -217,12 +232,11 @@ jobs:
       - name: Rapportér efterladt image
         if: ${{ failure() && steps.build-and-push.outputs.digest != '' }}
         env:
-          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
           set -euo pipefail
-          image=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
-          echo "::error::Kørslen er rød, men imaget blev publiceret og er IKKE signeret: ${image}@${DIGEST} — slet det, eller kør igen når årsagen er rettet."
+          echo "::error::Kørslen er rød, men imaget blev publiceret og er IKKE signeret: ${IMAGE}@${DIGEST} — slet det, eller kør igen når årsagen er rettet."
           echo "Følgende tags peger nu på det usignerede image:"
           echo "${TAGS}" | sed 's/^/  /'
