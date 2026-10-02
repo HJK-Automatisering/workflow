@@ -1,0 +1,18 @@
+# Bryder kun reglen `bind-mount`: en absolut sti, en relativ sti og den lange
+# form med `type: bind`. `- /data` alene er et anonymt volume og er tilladt.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    volumes:
+      - /srv/example/config:/app/config:ro
+      - ./data:/app/data
+      - type: bind
+        source: ../shared
+        target: /app/shared
+      - /data
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,36 @@
+# Fire ugyldige undtagelser: uden godkendt-af, uden dato, med et ukendt
+# regelnavn, og en der ikke daekker nogen fejl (doed - kun en advarsel).
+# De tre foerste er selv fejl, og fejlene de skulle daekke, bliver staaende.
+x-undtagelser:
+  - service: web
+    regel: bind-mount
+    begrundelse: "Mangler godkender"
+    dato: "2026-10-01"
+  - service: web
+    regel: ports
+    begrundelse: "Mangler dato"
+    godkendt-af: "Navn Navnesen"
+  - service: web
+    regel: bind-mounts
+    begrundelse: "Slaafejl i regelnavnet"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-10-01"
+  - service: web
+    regel: privileged
+    begrundelse: "Daekker ingen fejl"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-10-01"
+
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    volumes:
+      - /srv/example/config:/app/config:ro
+    ports:
+      - "8080:8080"
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

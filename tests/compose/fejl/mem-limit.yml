@@ -1,0 +1,22 @@
+# Bryder kun reglen `mem-limit`: hverken mem_limit eller
+# deploy.resources.limits.memory. En deploy-blok uden memory taeller ikke.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

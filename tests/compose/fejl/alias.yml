@@ -1,0 +1,30 @@
+# Bryder kun reglen `alias`: paa proxy-netvaerket uden alias, baade i
+# listeform (hvor et alias slet ikke kan staa) og i mapping-form uden aliases.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    networks:
+      - default
+      - nginx-proxy-manager_default
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    networks:
+      default:
+      nginx-proxy-manager_default:
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

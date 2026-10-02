@@ -1,0 +1,37 @@
+# To gyldige undtagelser: fejlene bliver advarsler, og exit-koden er 0. Den
+# anden undtagelse er aeldre end et aar og giver derudover en advarsel om
+# alderen - den er stadig gyldig.
+x-undtagelser:
+  - service: web
+    regel: bind-mount
+    begrundelse: "Leverandoerens image laeser sin konfigurationsfil fra denne sti"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-10-01"
+  - service: worker
+    regel: host-adgang
+    begrundelse: "Skal laese fra en USB-enhed paa vaerten"
+    godkendt-af: "Navn Navnesen"
+    dato: 2024-01-15
+
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    volumes:
+      - /srv/example/config:/app/config:ro
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    mem_limit: 256m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

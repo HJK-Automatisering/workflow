@@ -1,0 +1,76 @@
+name: Compose lint (reusable)
+
+# Genbrugeligt workflow. Kaldes af projekternes lint-job i deres egen
+# .github/workflows/docker-publish.yaml — se caller-eksemplet i README.
+#
+# Compose-filen på `main` er det, Portainer udruller. Dette workflow kører
+# scripts/compose_lint.py mod den i pull requests, så en fil der bryder
+# deploy-kontrakten — build i stedet for image, åbne porte, bind-mounts,
+# værdier under environment — stoppes før den når main. Reglerne står i
+# README under "Regler for compose-filen". deploy-update.yaml kører det samme
+# script én gang til før sin commit, så kontrollen ikke kan omgås ved at
+# skrive direkte på main.
+
+on:
+  workflow_call:
+    # Inputnavne bruger _ og ikke -. I GitHub-udtryk læses `inputs.compose-path`
+    # som et minus, og så skal man skrive inputs['compose-path'] overalt.
+    inputs:
+      compose_path:
+        description: 'Sti til compose-filen i det kaldende repo.'
+        type: string
+        default: 'deploy/docker-compose.yml'
+
+# Bemærk: ingen `concurrency` her, og ingen `secrets:`. Concurrency hører i
+# det kaldende workflow, og lint har ikke brug for andet end læseadgang.
+
+jobs:
+  compose-lint:
+    runs-on: ubuntu-latest
+
+    # To checkouts, en pip-install og et script, der kører på sekunder. Mere
+    # end det er noget, der hænger.
+    timeout-minutes: 10
+
+    # Kan ikke overstige det kaldende jobs rettigheder — contents: read skal
+    # derfor også stå i caller-workflowet. Lint læser kun.
+    permissions:
+      contents: read
+
+    env:
+      COMPOSE_PATH: ${{ inputs.compose_path }}
+      # Scriptet hentes fra dette repo i præcis den commit workflowet selv
+      # kører fra, så workflow og script aldrig kan komme ud af takt.
+      WORKFLOW_REPO_DIR: .workflow-repo
+
+    steps:
+      # Kalderens repo. Scriptet tjekker med `git ls-files`, om en stack.env
+      # eller .env er committet, så det skal være en rigtig checkout.
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Samme mønster og samme SHA som i deploy-update.yaml. Repoet er
+      # offentligt, så GITHUB_TOKEN fra app-repoet rækker til checkout.
+      - name: Checkout workflow-repoet
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: HJK-Automatisering/workflow
+          ref: ${{ github.job_workflow_sha }}
+          path: ${{ env.WORKFLOW_REPO_DIR }}
+          persist-credentials: false
+
+      # Docker findes på runneren, så scriptets `docker compose config`-tjek
+      # kører med. Scriptet skriver sine fund som ::error og ::warning med
+      # fil og linje, så de vises som annotationer på PR'en. Exit 1 ved fejl.
+      - name: Lint compose-filen
+        run: |
+          set -euo pipefail
+          if [[ ! -f "${COMPOSE_PATH}" ]]; then
+            echo "::error::Compose-filen ${COMPOSE_PATH} findes ikke i ${GITHUB_REPOSITORY}. Opret den, eller sæt inputtet compose_path."
+            exit 1
+          fi
+          python -m pip install --quiet -r "${WORKFLOW_REPO_DIR}/requirements.txt"
+          if ! python "${WORKFLOW_REPO_DIR}/scripts/compose_lint.py" "${COMPOSE_PATH}"; then
+            echo "::error::${COMPOSE_PATH} bryder reglerne for compose-filer — se fejlene ovenfor. Reglerne og undtagelsesformatet står i README for HJK-Automatisering/workflow under \"Regler for compose-filen\"."
+            exit 1
+          fi

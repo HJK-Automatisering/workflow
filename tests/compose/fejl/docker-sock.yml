@@ -1,0 +1,13 @@
+# Bryder kun reglen `docker-sock`: socketen er ogsaa en bind-mount, men ét
+# volume giver én fejl, og docker-sock er den praecise.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

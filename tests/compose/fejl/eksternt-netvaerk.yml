@@ -1,0 +1,23 @@
+# Bryder kun reglen `eksternt-netvaerk`: et andet eksternt netvaerk end
+# proxy-netvaerket. Proxy-netvaerket selv er tilladt og staar ved siden af.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    networks:
+      default:
+      shared-backend:
+      nginx-proxy-manager_default:
+        aliases:
+          - example-app
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  shared-backend:
+    external: true
+  nginx-proxy-manager_default:
+    external: true

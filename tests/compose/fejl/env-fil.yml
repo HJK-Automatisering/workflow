@@ -1,0 +1,15 @@
+# Bryder kun reglen `env-fil`: Portainer skriver ingen stack.env for
+# Git-stacks, saa env_file peger paa en fil der ikke findes. `required: false`
+# er kun med, saa docker compose config ikke ogsaa fejler paa den manglende fil.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    env_file:
+      - path: stack.env
+        required: false
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,43 @@
+# Referencen fra README (afsnittet "Reference: forventet compose-format") med
+# pladsholderne udfyldt. Bryder ingen regler. Rettes referencen i README, skal
+# denne fil foelge med - og omvendt.
+services:
+  web:
+    # Sættes af deploy-update ved release. Ret ikke i hånden.
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    # Aldrig værdier her. De sættes som stackens variabler i Portainer og
+    # substitueres ind ved udrulning — kun nøgler med ${NØGLE} som værdi.
+    environment:
+      - DB_SERVER=${DB_SERVER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      default:
+      nginx-proxy-manager_default:
+        aliases:
+          - example-app
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    image: postgres:16.4
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    mem_limit: 1g
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  db-data:
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

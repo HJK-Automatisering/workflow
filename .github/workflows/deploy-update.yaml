@@ -229,28 +229,20 @@ jobs:
               ;;
           esac
 
-      # stack.env genereres af Portainer og ligger aldrig i repoet, men
-      # compose-filen henviser til den med env_file. Uden en tom fil ved siden
-      # af fejler `config` på det — ikke på det vi vil tjekke. Fase 2 erstatter
-      # trinnet med compose-lint.
-      - name: Sanity-tjek compose-filen
+      # Samme regler som compose-lint.yaml kører i pull requests, her mod
+      # filen efter opdateringen og før commit — så en fil der bryder
+      # deploy-kontrakten aldrig når main gennem dette workflow, heller ikke
+      # hvis nogen har skrevet direkte på main uden om en PR. Scriptet kører
+      # selv `docker compose config --no-interpolate`, så tjekket ikke
+      # afhænger af hvilke variabler der er sat, og ingen stack.env behøves.
+      # ruamel.yaml er installeret i trinnet ovenfor.
+      - name: Lint compose-filen
         if: steps.release.outputs.release == 'true' && steps.update.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          stack_env="$(dirname "${COMPOSE_PATH}")/stack.env"
-          oprettet=false
-          if [[ ! -e "${stack_env}" ]]; then
-            : > "${stack_env}"
-            oprettet=true
-          fi
-          rc=0
-          docker compose -f "${COMPOSE_PATH}" config -q || rc=$?
-          if [[ "${oprettet}" == "true" ]]; then
-            rm -f "${stack_env}"
-          fi
-          if [[ "${rc}" -ne 0 ]]; then
-            echo "::error::${COMPOSE_PATH} kan ikke læses af docker compose efter opdateringen. Intet er committet. Ret filen på main og kør jobbet igen."
-            exit "${rc}"
+          if ! python "${WORKFLOW_REPO_DIR}/scripts/compose_lint.py" "${COMPOSE_PATH}"; then
+            echo "::error::${COMPOSE_PATH} bryder reglerne for compose-filer efter opdateringen — se fejlene ovenfor. Intet er committet. Ret filen på main (reglerne står i README for HJK-Automatisering/workflow under \"Regler for compose-filen\") og kør jobbet igen."
+            exit 1
           fi
 
       # Forfatteren er GitHubs egen bot-identitet, så commit'en kan kendes fra

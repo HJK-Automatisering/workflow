@@ -1,0 +1,12 @@
+# Bryder kun reglen `ports`: al adgang gaar via Nginx Proxy Manager.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
