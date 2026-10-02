@@ -99,18 +99,22 @@ jobs:
     # GITHUB_TOKEN følger automatisk med. `secrets: inherit` er ikke nødvendigt
     # og bør ikke tilføjes — det giver det kaldte workflow adgang til alt.
 
-    # with:
-    #   # Kun hvis noget faktisk kører på arm. Bygger ellers under QEMU for ingenting.
-    #   platforms: linux/amd64,linux/arm64
-    #   # Hvis Dockerfilen ikke ligger i roden.
-    #   dockerfile: ./src/Dockerfile
-    #   context: ./src
-    #   # Andet imagenavn end <org>/<repo>.
-    #   image_name: hjk-automatisering/mit-image
-    #   # ADVARSEL: build-args kan læses af alle der kan pulle imaget.
-    #   # Aldrig tokens, adgangskoder eller forbindelsesstrenge her.
-    #   extra_build_args: |
-    #     FEATURE_FLAG=true
+    with:
+      # Versionstags overskrives aldrig. Findes :1.2.3 allerede i GHCR, nægter
+      # build-jobbet at bygge — tag en ny version i stedet. Compose-filen peger
+      # på tagget, og tilbagerulning hviler på at det altid er samme image.
+      protect_release_tags: true
+      # # Kun hvis noget faktisk kører på arm. Bygger ellers under QEMU for ingenting.
+      # platforms: linux/amd64,linux/arm64
+      # # Hvis Dockerfilen ikke ligger i roden.
+      # dockerfile: ./src/Dockerfile
+      # context: ./src
+      # # Andet imagenavn end <org>/<repo>.
+      # image_name: hjk-automatisering/mit-image
+      # # ADVARSEL: build-args kan læses af alle der kan pulle imaget.
+      # # Aldrig tokens, adgangskoder eller forbindelsesstrenge her.
+      # extra_build_args: |
+      #   FEATURE_FLAG=true
 
   deploy:
     needs: build
@@ -183,6 +187,10 @@ bygges der uden push, og `digest` er tom.
 | `platforms` | `linux/amd64` | Målplatforme. Tilføj kun arm64, hvis noget faktisk kører på arm — alt andet end runnerens egen platform bygger under QEMU-emulering og tager mange gange så lang tid |
 | `sign` | `true` | Signér imaget med cosign. Slå kun fra, hvis registryet ikke understøtter det. Et usigneret image kan ikke udrulles af `deploy-update.yaml` |
 | `extra_build_args` | `''` | Ekstra build-args, én pr. linje. **Build-args ender som ENV i det færdige image og kan læses af alle, der kan pulle det. Aldrig hemmeligheder her** |
+| `protect_release_tags` | `false` | Nægter at bygge, hvis versionstagget allerede findes i registryet; en ny bygning kræver et nyt versionsnummer. Gælder kun release-tags `vX.Y.Z` — andre kørsler er uberørte. Kan et opslag ikke gennemføres, fx fordi pakken endnu ikke findes, regnes tagget som ledigt |
+
+`protect_release_tags` er slået fra som standard, så eksisterende kaldere er
+uberørte; caller-eksemplet ovenfor slår det til.
 
 **Outputs**
 
@@ -338,7 +346,10 @@ Hvad der skal ryddes op, afhænger af hvor det gik galt:
   signeret.* Imaget ligger i GHCR, og alle tags peger på det, også `:latest`.
   Det kan ikke udrulles (verifikationen afviser det), men det bør væk: slet
   versionen under pakkens *Versions* i GitHub. Når årsagen er rettet, kan
-  kørslen genstartes.
+  kørslen genstartes. **Med `protect_release_tags` slået til afvises
+  gen-kørslen**, fordi versionstagget nu findes; kørslen kan først genstartes,
+  når imaget og dets signatur-artefakt `sha256-<digest>` er slettet — eller
+  der tagges en ny version.
 - **Deploy-jobbet rødt:** imaget er bygget og signeret, men compose-filen er
   ikke ændret. Fejlbeskeden er på dansk og siger, hvad der mangler — tag på
   forkert gren, forkert `service`, manglende compose-fil. Ret det og kør
