@@ -36,7 +36,9 @@ Portainer følger `main` i app-repoet, læser `deploy/docker-compose.yml` og
 udruller, når filen ændres. Serveren kan ikke nås fra GitHub, og intet workflow
 forsøger det — ingen webhooks, ingen API-kald. Det eneste, workflowet gør, er at
 committe den nye image-version til compose-filen på `main`. Den commit er det,
-der udløser udrulningen.
+der udløser udrulningen. Variabler og hemmeligheder sættes på stacken i
+Portainer og substitueres ind i compose-filen ved udrulning, hvor der står
+`${NØGLE}` — der er ingen `stack.env`.
 
 Der bygges **kun ved tag-push**. Et commit på `main` bygger ikke, og derfor kan
 deploy-commit'en aldrig udløse en ny bygning. Et nyt image går i drift, når
@@ -357,24 +359,28 @@ web-editor. Fire skridt, i rækkefølge.
 
 **1. Compose-fil i repoet.** Opret `deploy/docker-compose.yml` ud fra det, der
 kører i dag. Image med den version, der kører nu — så første udrulning fra Git
-ændrer ingenting. Miljøvariabler via `env_file: - stack.env`, og **ingen værdier
-i filen**: alt, der i dag står under `environment:`, flyttes til stackens
-variabler i Portainer. `stack.env` committes aldrig; læg den i `.gitignore`.
-Resten af filen bør følge referencen nederst i denne README.
+ændrer ingenting. Alt, der i dag står under `environment:`, beholdes som nøgler
+med `${NØGLE}` som værdi, fx `- DB_SERVER=${DB_SERVER}`; selve værdierne
+flyttes til stackens variabler i Portainer, så der står **ingen værdier i
+filen**. Ingen `env_file`. Resten af filen bør følge referencen nederst i denne
+README.
 
 **2. Caller-workflow.** Læg [caller-eksemplet](#caller-eksempel) i
 `.github/workflows/docker-publish.yaml`, og sæt `service` til servicens navn i
 compose-filen. Har repoet allerede filen fra den gamle skabelon, er det
 deploy-jobbet, der skal tilføjes.
 
-**3. Git-stack i Portainer.** Opret stacken som *Repository*: app-repoets URL,
-ref `refs/heads/main`, compose-sti `deploy/docker-compose.yml`, GitOps-opdatering
-slået til med polling. Tilføj stackens variabler — det er dem, Portainer skriver
-til `stack.env`. Stacken skal kunne læse fra GHCR og fra app-repoet; begge dele
-sættes op i Portainer af dem, der administrerer den. Giv den nye stack **samme
-navn som den gamle**, hvis navngivne volumes skal følge med: Docker præfikser
-volumes med stacknavnet, og et nyt navn giver tomme volumes. Stop den gamle
-stack, før den nye startes, så de ikke kører side om side.
+**3. Git-stack i Portainer.** Git-kilden oprettes separat i Portainer —
+app-repoets URL, et token med læseadgang til repoet, og polling slået til — og
+vælges derefter på stacken. Opret stacken som *Repository* med den Git-kilde,
+ref `refs/heads/main` og compose-sti `deploy/docker-compose.yml`, og vælg
+registryet (GHCR) på stacken, så den kan pulle imaget. Tilføj stackens
+variabler — de substitueres ind i compose-filen, hvor der står `${NØGLE}`.
+Git-kilde og registry sættes op i Portainer af dem, der administrerer den. Giv
+den nye stack **samme navn som den gamle**, hvis navngivne volumes skal følge
+med: Docker præfikser volumes med stacknavnet, og et nyt navn giver tomme
+volumes. Stop den gamle stack, før den nye startes, så de ikke kører side om
+side.
 
 **4. Første release.** Tag en ny version og push den. Følg kørslen som under
 [Efter en release](#efter-en-release). Når compose-filen på `main` viser den
@@ -480,8 +486,11 @@ services:
     # Sættes af deploy-update ved release. Ret ikke i hånden.
     image: ghcr.io/hjk-automatisering/<app>:1.4.2
     restart: unless-stopped
-    env_file:
-      - stack.env
+    # Aldrig værdier her. De sættes som stackens variabler i Portainer og
+    # substitueres ind ved udrulning — kun nøgler med ${NØGLE} som værdi.
+    environment:
+      - DB_SERVER=${DB_SERVER}
+      - DB_PASSWORD=${DB_PASSWORD}
     networks:
       default:
       nginx-proxy-manager_default:
@@ -496,8 +505,8 @@ services:
   db:
     image: postgres:16.4
     restart: unless-stopped
-    env_file:
-      - stack.env
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql/data
     mem_limit: 1g

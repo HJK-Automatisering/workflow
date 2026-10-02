@@ -10,6 +10,15 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-02 | task-0003 | Opgaven er bygget; README og eksempelfil | Alle punkter under Færdig når holder ved læsning af diffen; scripttesten er grøn lokalt | architect |
+| 2026-10-02 | task-0005 | To fund fra task-0003 lagt i task-0005: kommentaren i deploy-update.yaml ved sanity-trinnet og kommentaren i .gitignore siger stadig, at Portainer genererer stack.env | Sanity-trinnet erstattes alligevel i task-0005; .gitignore-kommentaren er én linje, der hører med i samme oprydning | architect |
+| 2026-10-02 | task-0005 | Lint-jobbet ligger i samme caller-workflow og kører på alle pull requests uden stifilter | Én skabelonfil at vedligeholde; stifilter pr. job kræver en tredjeparts-action. Separat caller-fil afvist. Godkendt af mennesket | architect |
+| 2026-10-02 | task-0005 | Ingen literaler under `environment:`; regler `hemmelighed`, ny `env-vaerdi`, og `env-fil` forbyder `env_file` helt | Portainer skriver ikke stack.env for Git-stacks; princippet om ingen værdier i compose-filen består, og en forbindelsesstreng under en neutral nøgle må ikke slippe igennem. Alternativ B afvist. Godkendt af mennesket | architect |
+| 2026-10-02 | task-0005 | Lint blokerer udrulningen i deploy-jobbet; mennesket kører scriptet mod de kendte kaldere før `v1` flyttes | Opgavebeskrivelsen siger erstat sanity-trinnet; en app der aldrig har set reglerne må ikke få en rød release uventet | architect |
+| 2026-10-02 | task-0005 | Regelnavnet `env-vaerdi` er nyt i forhold til agenternes deploy-kontrakt | Agenter-repoet opdateres af mennesket i en anden tråd; regelnavne deles mellem lint og kontrakt | architect |
+| 2026-10-02 | — | Fase 2 delt i task-0004 (protect_release_tags) og task-0005 (compose-lint) | Uafhængige leverancer; opgavebeskrivelsen siger selv, at tag-beskyttelsen kan trækkes ud | architect |
+| 2026-10-02 | task-0003 | Fund fra migreringen: Portainer genererer ikke stack.env for Git-stacks; README rettes som egen opgave, workflows urørt | Stackens variabler substitueres i compose-filen; sanity-trinnets tomme stack.env er harmløs og erstattes af lint i task-0005 | architect |
+| 2026-10-02 | — | Emnet flere services pr. kald er et reelt behov | ba-bfo-fagligt-ledelsestilsyn kørte to deploy-jobs for ét image ved v0.2.0 | architect |
 | 2026-10-02 | task-0001 | Fase 1 bekræftet i drift på ba-bfo-fagligt-ledelsestilsyn: release udrullet via Portainer, rc-tag bygget uden udrulning, gen-kørsel og git revert virker | Menneskets testkørsel efter v1.1.0. Fase 2 kan påbegyndes | architect |
 | 2026-10-02 | — | v1.1.0 udgivet og v1 flyttet dertil | Fase 1 er additiv (nyt workflow, nyt output, README); kaldere på @v1 får det uden ændring. Valideringen var grøn før tagget | architect |
 | 2026-10-01 | task-0002 | Opgaven er bygget; README, CLAUDE.md og kommentaren ved signeringstrinnet | Alle punkter under Færdig når holder ved læsning mod workflow-filerne; caller-eksemplet er parset og matcher inputs og outputs | architect |
