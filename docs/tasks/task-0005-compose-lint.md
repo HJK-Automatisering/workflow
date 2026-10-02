@@ -26,7 +26,7 @@ Reglerne om miljøvariabler er ændret i forhold til opgavebeskrivelsen, fordi P
 
 Efterprøves af mennesket før `v1` flyttes:
 
-- [ ] Scriptet er kørt lokalt mod compose-filerne i de kendte kaldere, og ingen app får en rød release af regler, den aldrig har set.
+- [x] Scriptet er kørt lokalt mod compose-filerne i de kendte kaldere, og ingen app får en rød release af regler, den aldrig har set. (Kørt af mennesket 2026-10-02 mod ba-bfo-fagligt-ledelsestilsyn: fem fund, rettes i app-repoet; se loggen.)
 
 ## Sådan bygger vi det
 
