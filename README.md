@@ -169,7 +169,7 @@ jobs:
       # compose_path: deploy/docker-compose.yml   # standard; ret kun hvis filen ligger et andet sted
 ```
 
-Tre ting at vide om eksemplet:
+Fire ting at vide om eksemplet:
 
 - **Rettighederne skal stå i kalderen.** Et genbrugeligt workflow kan ikke
   hæve sig over det kaldende jobs rettigheder. Står `permissions` kun i det
