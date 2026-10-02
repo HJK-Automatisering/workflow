@@ -1,8 +1,9 @@
 # workflow
 
 Genbrugelige GitHub Actions-workflows for HJK-Automatisering. Et app-repo bygger,
-signerer og udruller sit Docker-image med to kald hertil — uden selv at eje
-tagging-regler, action-versioner eller signeringslogik.
+signerer og udruller sit Docker-image med tre kald hertil — lint af
+compose-filen, build og udrulning — uden selv at eje tagging-regler,
+action-versioner, signeringslogik eller reglerne for compose-filen.
 
 ## Hvad repoet er
 
@@ -20,14 +21,18 @@ hvor `v1` er et flytbart tag, der altid peger på den seneste udgave uden brud.
 | Fil | Hvad |
 |---|---|
 | `.github/workflows/docker-publish.yaml` | Bygger imaget, pusher det til GHCR og signerer det keyless med cosign |
-| `.github/workflows/deploy-update.yaml` | Verificerer signatur og digest og skriver den nye version ind i compose-filen på `main` |
-| `.github/workflows/validate.yaml` | Strukturkontrol af de to ovenstående. Kører kun i dette repo |
+| `.github/workflows/deploy-update.yaml` | Verificerer signatur og digest, linter compose-filen og skriver den nye version ind i den på `main` |
+| `.github/workflows/compose-lint.yaml` | Linter compose-filen mod [reglerne](#regler-for-compose-filen) i pull requests |
+| `.github/workflows/validate.yaml` | Strukturkontrol af de tre ovenstående og selvtest af begge scripts mod `tests/compose/`. Kører kun i dette repo |
 | `scripts/update_compose_image.py` | Scriptet `deploy-update.yaml` opdaterer compose-filen med. Hentes herfra under kørslen |
-| `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af scriptet |
+| `scripts/compose_lint.py` | Lint-scriptet, som `compose-lint.yaml` og `deploy-update.yaml` kører, og som kan køres lokalt. Hentes herfra under kørslen |
+| `tests/compose/` | Eksempelfiler til selvtesten: gode eksempler, ét dårligt pr. regel, og en gyldig og en ugyldig undtagelse |
+| `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af scripts |
 
 **Repoet er offentligt, og det skal det blive ved med.** `deploy-update.yaml`
-tjekker dette repo ud fra app-repoets kørsel for at hente scriptet, og det går
-kun uden token, fordi repoet er offentligt. App-repoerne er private.
+og `compose-lint.yaml` tjekker dette repo ud fra app-repoets kørsel for at
+hente scripts, og det går kun uden token, fordi repoet er offentligt.
+App-repoerne er private.
 
 ### Sådan hænger udrulningen sammen
 
@@ -85,6 +90,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    # Linter deploy/docker-compose.yml mod reglerne i HJK-Automatisering/workflow
+    # (README, "Regler for compose-filen"). Kører ved alle tre triggere — uden
+    # stifilter, fordi et filter pr. job kræver en tredjeparts-action, og
+    # kørslen tager sekunder. Ved tag-push er filen allerede på main; der
+    # linter deploy-jobbet den en gang til før sin commit.
+    uses: HJK-Automatisering/workflow/.github/workflows/compose-lint.yaml@v1
+
+    # Lint læser kun. Skal stå her af samme grund som under build.
+    permissions:
+      contents: read
+
+    # with:
+    #   compose_path: deploy/docker-compose.yml   # standard; ret kun hvis filen ligger et andet sted
+
   build:
     uses: HJK-Automatisering/workflow/.github/workflows/docker-publish.yaml@v1
 
@@ -232,6 +252,21 @@ verificerede digest. Har ingen outputs.
 følger automatisk med og rækker, så længe `main` ikke er beskyttet — se
 [Hvis `main` beskyttes](#hvis-main-beskyttes).
 
+### `compose-lint.yaml`
+
+Kører `scripts/compose_lint.py` mod compose-filen i det kaldende repo og
+fejler, hvis den bryder en af [reglerne](#regler-for-compose-filen). Fund
+vises som annotationer på filen i PR'en, med linjenummer, service og
+regelnavn. Har ingen outputs.
+
+**Inputs**
+
+| Input | Standard | Beskrivelse |
+|---|---|---|
+| `compose_path` | `deploy/docker-compose.yml` | Sti til compose-filen i det kaldende repo |
+
+**Rettigheder i kalderen:** `contents: read`. Ingen `secrets:`.
+
 ### Verifikationsreglen
 
 `deploy-update.yaml` accepterer kun images, der er signeret af
@@ -287,8 +322,11 @@ Hvad der sker derefter:
      servicene på et andet image-navn, eller findes den ikke, stoppes der
      med en fejl, før noget er skrevet. Står nogle af servicene allerede på
      versionen, opdateres resten; står alle der, afsluttes grønt uden commit.
-   - Kører `docker compose config` som sanity-tjek med en tom, midlertidig
-     `stack.env`.
+   - Linter den opdaterede fil med `scripts/compose_lint.py` — samme regler
+     som i pull requests, inkl. `docker compose config --no-interpolate`.
+     Fejler lint, committes intet; filen rettes på `main`, og jobbet køres
+     igen. En app, der aldrig har set [reglerne](#regler-for-compose-filen),
+     kan få en rød release her — kør scriptet lokalt først.
    - Committer som `github-actions[bot]` med beskeden
      `deploy(<app>): <service> -> 1.2.3` — ved flere services
      `deploy(<app>): web, worker -> 1.2.3`, kun med dem, der blev ændret — og
@@ -340,8 +378,9 @@ version kører. Det skal nogen tjekke:
 3. **I Portainer**, når polling-intervallet er gået: stacken viser den nye
    image-reference, containeren er genskabt, og dens log viser den nye
    `APP_VERSION` ved opstart. Står stacken stadig på den gamle version, så se
-   Portainers egen log for stacken — typisk manglende læseadgang til GHCR eller
-   en fejl i compose-filen, som sanity-tjekket ikke fanger.
+   Portainers egen log for stacken — typisk manglende læseadgang til GHCR,
+   en stackvariabel der ikke er sat, eller en fejl i compose-filen, som lint
+   ikke fanger.
 
 ### Oprydning efter en rød kørsel
 
@@ -361,11 +400,13 @@ Hvad der skal ryddes op, afhænger af hvor det gik galt:
   der tagges en ny version.
 - **Deploy-jobbet rødt:** imaget er bygget og signeret, men compose-filen er
   ikke ændret. Fejlbeskeden er på dansk og siger, hvad der mangler — tag på
-  forkert gren, forkert `service`, manglende compose-fil, eller en service i
+  forkert gren, forkert `service`, manglende compose-fil, en service i
   `service`, der peger på et andet image-navn end det, der skulle skrives
-  (beskeden viser begge navne). Ret det og kør deploy-jobbet igen fra
-  Actions; det er ufarligt at gentage. Er skiftet af image-navn tilsigtet,
-  rettes linjen i hånden på `main` først.
+  (beskeden viser begge navne), eller en compose-fil, der bryder en af
+  [reglerne](#regler-for-compose-filen) (hver fejl står med linje, service
+  og regelnavn). Ret det og kør deploy-jobbet igen fra Actions; det er
+  ufarligt at gentage. Er skiftet af image-navn tilsigtet, rettes linjen i
+  hånden på `main` først.
 
 **Signaturen er et selvstændigt artefakt i GHCR.** cosign v3 hæfter den på
 imaget som en OCI-referrer med fallback-tagget `sha256-<digest>` — **uden**
@@ -385,8 +426,16 @@ kører i dag. Image med den version, der kører nu — så første udrulning fra
 ændrer ingenting. Alt, der i dag står under `environment:`, beholdes som nøgler
 med `${NØGLE}` som værdi, fx `- DB_SERVER=${DB_SERVER}`; selve værdierne
 flyttes til stackens variabler i Portainer, så der står **ingen værdier i
-filen**. Ingen `env_file`. Resten af filen bør følge referencen nederst i denne
-README.
+filen**. Ingen `env_file`. Resten af filen skal følge referencen nederst i
+denne README — kør lint lokalt, før PR'en åbnes, så releasen ikke bliver rød
+på [regler](#regler-for-compose-filen), appen aldrig har set:
+
+```powershell
+.venv\Scripts\python.exe scripts\compose_lint.py ..\<app-repo>\deploy\docker-compose.yml
+```
+
+Kommandoen køres fra en lokal kopi af dette repo; se *Lokal kørsel* under
+reglerne.
 
 **2. Caller-workflow.** Læg [caller-eksemplet](#caller-eksempel) i
 `.github/workflows/docker-publish.yaml`, og sæt `service` til servicens navn i
@@ -476,8 +525,15 @@ flytte det.
 
 `validate.yaml` kører på PR'er og push til `main` og fanger, hvis et af de
 faste inputs eller outputs forsvinder, hvis et job mangler `permissions` eller
-`timeout-minutes`, og hvis scriptet ændrer andet end image-linjen. Den er grøn,
-før der tagges.
+`timeout-minutes`, hvis `update_compose_image.py` ændrer andet end
+image-linjen, og hvis en lint-regel er strammet eller løsnet, så eksemplerne i
+`tests/compose/` ikke længere falder ud som de skal. Den er grøn, før der
+tagges.
+
+**En strammere lint-regel er et brud.** En compose-fil, der passerer i dag, og
+som fejler efter ændringen, giver en rød release i et app-repo, der intet har
+ændret. Kør scriptet mod de kendte kalderes compose-filer, før `v1` flyttes —
+eller udgiv som `v2`.
 
 ### Vedligehold
 
@@ -499,7 +555,89 @@ før der tagges.
   app-repoernes kørsler med `GITHUB_TOKEN`, som kun rækker til offentlige repos.
   Gøres det privat, fejler alle udrulninger ved checkout af scriptet.
 - **`requirements.txt`** pinner `ruamel.yaml`. Dependabot bumper den; en bump er
-  en additiv ændring, men `validate.yaml`s scripttest skal være grøn først.
+  en additiv ændring, men `validate.yaml`s scripttests skal være grønne først.
+
+## Regler for compose-filen
+
+Compose-filen på `main` er det, Portainer udruller, og `scripts/compose_lint.py`
+håndhæver reglerne for den tre steder: lokalt før en PR, i pull requests
+(`compose-lint.yaml`) og i deploy-jobbet før commit (`deploy-update.yaml`).
+**Reglerne og deres navne er de samme som i agenternes deploy-kontrakt**, så en
+agent og et menneske retter efter den samme liste. Referencen nederst passerer
+alle regler.
+
+Scriptet læser filen som YAML, kører `docker compose config -q --no-interpolate`
+(så resultatet ikke afhænger af, hvilke variabler der er sat på maskinen), og
+tjekker derefter reglerne for hver service. Hvert fund skrives med fil, linje,
+regelnavn og service:
+
+```
+::error file=deploy/docker-compose.yml,line=12::[latest] web: imaget `ghcr.io/hjk-automatisering/<app>:latest` har tagget `latest`, som flytter sig. Skriv et versionstag, fx `:1.2.3`.
+```
+
+Exit-koden er `0` uden fejl (advarsler tillades), `1` ved fejl og `2` ved
+forkerte argumenter.
+
+| Regel | Fejler når |
+|---|---|
+| `build` | `build:` findes. Imaget bygges og signeres af `docker-publish.yaml`; compose-filen peger kun på et image |
+| `latest` | image mangler tag, tagget indeholder intet ciffer, eller tagget er et af `latest`, `main`, `master`, `stable`, `edge`, `dev`, `nightly`, `lts`. `postgres:16` og `redis:7-alpine` er tilladt; egne images er altid `X.Y.Z` via `deploy-update.yaml` |
+| `privileged` | `privileged: true` |
+| `docker-sock` | et volume har `/var/run/docker.sock` som kilde |
+| `bind-mount` | et volume er en sti på værten (`/`, `./`, `../`) i kort form, eller `type: bind` i lang form, i stedet for et navngivet volume. `- /data` alene er et anonymt volume og er tilladt |
+| `host-adgang` | `network_mode: host`, `pid: host`, `devices`, `cap_add`, `sysctls` eller `security_opt` |
+| `hemmelighed` | en nøgle under `environment:` indeholder `PASSWORD`, `PASSWD`, `SECRET`, `TOKEN` eller `CREDENTIALS` som delstreng, eller `KEY` eller `PRIVATE` som helt led adskilt af `_` (`API_KEY` fejler, `KEYCLOAK_URL` gør ikke), og værdien ikke er præcis `${NAVN}`. `${NAVN:-standard}` og `${NAVN-standard}` fejler også |
+| `env-vaerdi` | enhver anden værdi under `environment:`, der ikke er præcis `${NAVN}`. En nøgle uden værdi fejler også. Variabelnavnet behøver ikke være lig nøglen |
+| `env-fil` | `env_file:` findes, eller en `stack.env` eller `.env` er committet i repoet. Tjekket bruger `git ls-files`; uden git springes det over med en advarsel |
+| `restart` | `restart` mangler eller er `no` |
+| `mem-limit` | `mem_limit` og `deploy.resources.limits.memory` mangler begge |
+| `logging` | `logging.options.max-size` eller `max-file` mangler |
+| `ports` | `ports:` findes. Al adgang går via Nginx Proxy Manager |
+| `container-name` | `container_name` findes. Navnet kolliderer på tværs af stacks |
+| `eksternt-netvaerk` | et netværk med `external: true` er ikke `nginx-proxy-manager_default` |
+| `alias` | en service på `nginx-proxy-manager_default` mangler et netværksalias. Ingen krav til aliasets form |
+
+`environment:` tjekkes i både mapping-form (`NØGLE: ${NØGLE}`) og listeform
+(`- NØGLE=${NØGLE}`). Én nøgle giver én fejl; `hemmelighed` vinder over
+`env-vaerdi`. Ét volume giver én fejl; `docker-sock` vinder over `bind-mount`.
+
+### Undtagelser
+
+En regel kan undtages for en service i topniveau-feltet `x-undtagelser`, som
+Docker Compose ignorerer:
+
+```yaml
+x-undtagelser:
+  - service: web
+    regel: bind-mount
+    begrundelse: "Leverandørens image kræver konfigurationsfil på denne sti"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-10-01"
+```
+
+- En regel dækket af en gyldig undtagelse giver en **advarsel** i stedet for
+  en fejl, og kørslen er grøn.
+- En undtagelse uden `service`, `godkendt-af` eller `dato`, eller med et ukendt
+  regelnavn, er **selv en fejl** og dækker intet.
+- Undtagelser udløber ikke, men en `dato` ældre end et år giver en advarsel.
+- En undtagelse, der ikke rammer nogen fejl, er død og giver en advarsel.
+- For `eksternt-netvaerk` er `service` netværkets navn. En committet
+  `stack.env` eller `.env` kan ikke undtages.
+
+### Lokal kørsel
+
+Scriptet kører uden GitHub-kontekst og uden Docker. Fra en lokal kopi af dette
+repo, med `.venv` oprettet én gang:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe scripts\compose_lint.py ..\<app-repo>\deploy\docker-compose.yml
+```
+
+Findes `docker compose` ikke på maskinen, springes compose-tjekket over med en
+advarsel; den fulde kontrol sker i Actions. Fundene skrives på samme form som i
+Actions, så de kan rettes efter linjenummer.
 
 ## Reference: forventet compose-format
 

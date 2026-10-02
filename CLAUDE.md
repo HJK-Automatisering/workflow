@@ -26,12 +26,14 @@ Hvordan repoet udgives (minor-tag og flyt af `v1`, `v2` ved brud, versionstags f
 |---|---|
 | `README.md` | Caller-eksempel, inputs og outputs, release, tilbagerulning, migrering og udgivelse af repoet. Forlægget for caller-skabelonen i agenter-repoet |
 | `.github/workflows/docker-publish.yaml` | Genbrugeligt build-, push- og signeringsworkflow. Outputs `digest`, `version`, `tags`, `image` |
-| `.github/workflows/deploy-update.yaml` | Genbrugeligt udrulningsworkflow. Verificerer signatur og digest og skriver `<image>:<version>` i compose-filen på `main` |
-| `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows og test af scriptet. Kører kun i dette repo |
+| `.github/workflows/deploy-update.yaml` | Genbrugeligt udrulningsworkflow. Verificerer signatur og digest, linter compose-filen og skriver `<image>:<version>` i den på `main` |
+| `.github/workflows/compose-lint.yaml` | Genbrugeligt lint-workflow. Kører `scripts/compose_lint.py` mod kalderens compose-fil i pull requests. Input `compose_path`, ingen outputs |
+| `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows og selvtest af begge scripts mod `tests/compose/`. Kører kun i dette repo |
 | `.github/dependabot.yml` | Bumper SHA-pinnede actions og pinnen i `requirements.txt` |
 | `scripts/update_compose_image.py` | Opdaterer `services.<service>.image` på én eller flere services (kommasepareret) i en compose-fil og rører intet andet. Nægter at skrive, hvis en service peger på et andet image-navn. Hentes af `deploy-update.yaml` under kørslen |
-| `tests/compose/` | Eksempelfiler, `validate.yaml` kører scriptet imod |
-| `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af `scripts/` og installeres af `deploy-update.yaml` |
+| `scripts/compose_lint.py` | Linter en compose-fil mod de 16 regler i README (*Regler for compose-filen*) med undtagelser i `x-undtagelser`. Regelnavnene deles med agenternes deploy-kontrakt. Hentes af `compose-lint.yaml` og `deploy-update.yaml` under kørslen |
+| `tests/compose/` | Eksempelfiler til `validate.yaml`: `deploy-example.yml` til scripttesten for `update_compose_image.py` (skal selv være regelret), `ok/` gode eksempler, `fejl/<regel>.yml` ét dårligt pr. regel, `undtagelse-gyldig.yml` og `undtagelse-ugyldig.yml` |
+| `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af `scripts/` og installeres af `deploy-update.yaml` og `compose-lint.yaml` |
 | `.venv/` | Lokalt virtuelt miljø med indholdet af `requirements.txt`. Ikke versionsstyret |
 | `.gitattributes` | LF i alt, fordi `run:`-blokke er shell |
 | `docs/` | Tavle, beslutningslog og rapporter efter `AGENTS.md` |
