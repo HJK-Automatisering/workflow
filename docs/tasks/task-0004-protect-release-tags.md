@@ -1,7 +1,7 @@
 ---
 nummer: task-0004
 titel: Uforanderlige versionstags via protect_release_tags
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-10-02
 ---
@@ -15,11 +15,11 @@ slettes og sættes igen, og så overskrives versionstagget i GHCR uden at nogen 
 skal kunne nægte at bygge, når versionstagget allerede findes. Opgavebeskrivelsen: fase 2, krav 12.
 
 ## Færdig når
-- [ ] Med inputtet slået til stopper en kørsel på et release-tag før bygningen med en dansk fejl, hvis versionstagget allerede findes i registryet, og intet pushes.
-- [ ] Med inputtet slået fra, eller på en kørsel der ikke er et release-tag `vX.Y.Z`, er adfærden som i dag.
-- [ ] Beskeden om et efterladt image siger, med inputtet slået til, at imaget skal slettes i GHCR eller en ny version tagges, og at gen-kørsel afvises.
-- [ ] Valideringen i dette repo kræver det nye input og er grøn.
-- [ ] README beskriver inputtet, caller-eksemplet slår det til, og afsnittet om oprydning efter en rød kørsel siger, at gen-kørsel afvises, når inputtet er slået til.
+- [x] Med inputtet slået til stopper en kørsel på et release-tag før bygningen med en dansk fejl, hvis versionstagget allerede findes i registryet, og intet pushes.
+- [x] Med inputtet slået fra, eller på en kørsel der ikke er et release-tag `vX.Y.Z`, er adfærden som i dag.
+- [x] Beskeden om et efterladt image siger, med inputtet slået til, at imaget skal slettes i GHCR eller en ny version tagges, og at gen-kørsel afvises.
+- [x] Valideringen i dette repo kræver det nye input og er grøn.
+- [x] README beskriver inputtet, caller-eksemplet slår det til, og afsnittet om oprydning efter en rød kørsel siger, at gen-kørsel afvises, når inputtet er slået til.
 
 ## Sådan bygger vi det
 **`.github/workflows/docker-publish.yaml`**
