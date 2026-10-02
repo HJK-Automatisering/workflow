@@ -25,6 +25,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Samme image som web, andet entrypoint i appen. Opdateres i samme kald
+  # som web med `service: web,worker`, så én release giver én commit.
+  worker:
+    # Sættes af deploy-update ved release. Ret ikke i hånden.
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    environment:
+      - DB_SERVER=${DB_SERVER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   db:
     image: 'postgres:16.4'
     restart: unless-stopped
