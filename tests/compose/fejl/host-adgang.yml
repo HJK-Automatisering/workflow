@@ -1,0 +1,20 @@
+# Bryder kun reglen `host-adgang`: alle seks noegler, saa hver giver sin fejl.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      net.core.somaxconn: 1024
+    security_opt:
+      - seccomp=unconfined
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

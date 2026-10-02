@@ -1,0 +1,11 @@
+# Bryder kun reglen `container-name`: navnet kolliderer paa tvaers af stacks.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    container_name: example-web
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

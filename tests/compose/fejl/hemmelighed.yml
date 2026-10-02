@@ -1,0 +1,30 @@
+# Bryder kun reglen `hemmelighed`: noegler der ligner hemmeligheder, med en
+# vaerdi i filen, med en standardvaerdi, og uden vaerdi. Noegler der kun ligner
+# (KEYCLOAK_URL) og rigtige substitutioner (DB_PASSWORD) gaar igennem.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    environment:
+      - DB_PASSWORD=${DB_PASSWORD}
+      - API_KEY=abc123
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-hunter2}
+      - KEYCLOAK_URL=${KEYCLOAK_URL}
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    environment:
+      CLIENT_SECRET: s3cr3t
+      AUTH_TOKEN:
+      PRIVATE_URL: ${INTERNAL_URL}
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,23 @@
+# Bryder kun reglen `logging`: ingen logging-blok, kun max-size, og kun max-file.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    mem_limit: 512m
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+
+  cache:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"

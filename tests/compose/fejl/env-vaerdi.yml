@@ -1,0 +1,29 @@
+# Bryder kun reglen `env-vaerdi`: en literal, en standardvaerdi, en noegle
+# uden vaerdi, og et tal i mapping-form. Substitutioner gaar igennem - ogsaa
+# naar variabelnavnet ikke er lig noeglen.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    environment:
+      - DB_SERVER=${DB_SERVER}
+      - TZ=Europe/Copenhagen
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - FEATURE_FLAG
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    environment:
+      WORKERS: 4
+      DB_SERVER: ${DATABASE_HOST}
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

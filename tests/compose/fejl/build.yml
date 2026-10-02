@@ -1,0 +1,14 @@
+# Bryder kun reglen `build`: servicen bygger imaget selv. Imaget bygges og
+# signeres af docker-publish.yaml; compose-filen peger kun paa et versionstag.
+services:
+  web:
+    build: .
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    environment:
+      - DB_SERVER=${DB_SERVER}
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

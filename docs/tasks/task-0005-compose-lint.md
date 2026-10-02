@@ -1,7 +1,7 @@
 ---
 nummer: task-0005
 titel: compose-lint: regler for compose-filer i pull requests og før udrulning
-status: planlagt
+status: i-gang
 kilde: interview
 oprettet: 2026-10-02
 ---

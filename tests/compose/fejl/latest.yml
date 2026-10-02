@@ -1,0 +1,29 @@
+# Bryder kun reglen `latest`: tre services med hver sin variant af et tag,
+# der flytter sig - intet tag, et navngivet flytbart tag, og et tag uden ciffer.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:latest
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cache:
+    image: redis:alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

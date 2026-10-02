@@ -1,0 +1,59 @@
+# De tilladte varianter, som referencen ikke viser: environment i mapping-form
+# med et andet variabelnavn end noeglen, hukommelsesgraense via deploy,
+# `restart: always`, et navngivet volume i lang form, et anonymt volume, et
+# tag med ciffer og bogstaver, og network_mode der ikke er host. Bryder
+# ingen regler.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: always
+    environment:
+      DB_SERVER: ${DATABASE_HOST}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+    networks:
+      default:
+      nginx-proxy-manager_default:
+        aliases:
+          - example-app
+          - example-app-alt
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cache:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        source: cache-data
+        target: /data
+      - /tmp
+    mem_limit: 128m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    network_mode: "service:web"
+    mem_limit: 256m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  cache-data:
+
+networks:
+  nginx-proxy-manager_default:
+    external: true
