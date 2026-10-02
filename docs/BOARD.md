@@ -29,6 +29,7 @@ eller nummeret på den rapport opgaven kom af.>
 
 | Emne |
 |---|
+| deploy-update: flere services pr. kald, så et repo med ét image og to services ikke skal køre to deploy-jobs |
 | Første testkørsel af udrulningen på ba-bfo-fagligt-ledelsestilsyn efter udgivelse af `v1.1.0` |
 | GitOps fase 2: `compose-lint.yaml` med lint-script, `protect_release_tags` og selvtest i `validate.yaml` |
 | Lokal validering af workflows, så `validate.yaml`s script kan køres uden GitHub Actions |
