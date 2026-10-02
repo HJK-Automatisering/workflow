@@ -48,6 +48,11 @@ jobs:
                   inputs=('compose_path', 'service', 'image', 'digest', 'version'),
                   outputs=(),
               ),
+              '.github/workflows/compose-lint.yaml': dict(
+                  job='compose-lint',
+                  inputs=('compose_path',),
+                  outputs=(),
+              ),
           }
 
           alle_fejl = 0
@@ -255,4 +260,123 @@ jobs:
               sys.exit(1)
           print(f'{script}: ok (aendring, idempotens, ukendt service, flere services, '
                 f'delvis idempotens, vaern mod forkert image-navn)')
+          PY
+
+      # Lint-scriptet koerer i alle projekters pull requests og foer hver
+      # deploy-commit. En regel der strammes ved et uheld, goer alle releases
+      # roede paa én gang - og en regel der loesnes, lukker det igennem den
+      # skulle stoppe. Derfor: ét godt eksempel skal passere, ét daarligt
+      # eksempel pr. regel skal fejle paa netop den regel og ingen anden, og
+      # undtagelserne skal virke begge veje. Regelnavnene staar fast her, fordi
+      # de deles med README og agenternes deploy-kontrakt.
+      # Docker findes paa runneren, saa compose-tjekket koerer med.
+      - name: Afprøv scripts/compose_lint.py
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet -r requirements.txt
+          python - <<'PY'
+          import subprocess, sys
+          from pathlib import Path
+
+          script = 'scripts/compose_lint.py'
+          REGLER = (
+              'build', 'latest', 'privileged', 'docker-sock', 'bind-mount', 'host-adgang',
+              'hemmelighed', 'env-vaerdi', 'env-fil', 'restart', 'mem-limit', 'logging',
+              'ports', 'container-name', 'eksternt-netvaerk', 'alias',
+          )
+          # Fund der ikke er regler. Et eksempel maa ikke snuble over dem - saa
+          # viser det ikke det, det skulle.
+          ANDRE = ('yaml', 'compose', 'struktur')
+
+          def koer(fil):
+              r = subprocess.run([sys.executable, script, str(fil)],
+                                 capture_output=True, text=True, encoding='utf-8')
+              return r.returncode, r.stdout + r.stderr
+
+          def linjer(out, niveau):
+              return [l for l in out.splitlines() if l.startswith(f'::{niveau}')]
+
+          fejl = []
+
+          # 1) Gode eksempler, inkl. referencen fra README og eksempelfilen til
+          #    update_compose_image.py: exit 0 og ingen fejl. Advarsler er
+          #    tilladt - men ikke om at compose-tjekket blev sprunget over;
+          #    docker findes paa runneren, og tjekket skal koere.
+          gode = sorted(Path('tests/compose/ok').glob('*.yml')) + [Path('tests/compose/deploy-example.yml')]
+          if len(gode) < 2:
+              fejl.append('forventede mindst ét godt eksempel i tests/compose/ok/')
+          for fil in gode:
+              rc, out = koer(fil)
+              if rc != 0 or linjer(out, 'error'):
+                  fejl.append(f'{fil}: forventede exit 0 uden fejl, fik exit {rc}:')
+                  fejl.extend('  ' + l for l in linjer(out, 'error'))
+              if '[compose]' in out:
+                  fejl.append(f'{fil}: compose-tjekket gav et fund paa et godt eksempel: '
+                              + '; '.join(l for l in out.splitlines() if '[compose]' in l))
+
+          # 2) Ét daarligt eksempel pr. regel: exit 1, mindst én ::error med netop
+          #    den regel, og ingen fejl paa andre regler. Filnavnet er regelnavnet,
+          #    saa en regel uden eksempel - eller et eksempel uden regel - opdages.
+          eksempler = {p.stem: p for p in Path('tests/compose/fejl').glob('*.yml')}
+          for regel in sorted(set(REGLER) - set(eksempler)):
+              fejl.append(f'reglen `{regel}` har intet eksempel i tests/compose/fejl/{regel}.yml')
+          for navn in sorted(set(eksempler) - set(REGLER)):
+              fejl.append(f'tests/compose/fejl/{navn}.yml svarer ikke til en kendt regel')
+          for regel in REGLER:
+              fil = eksempler.get(regel)
+              if fil is None:
+                  continue
+              rc, out = koer(fil)
+              errors = linjer(out, 'error')
+              if rc != 1:
+                  fejl.append(f'{fil}: forventede exit 1, fik {rc}')
+              if not any(f'[{regel}]' in l for l in errors):
+                  fejl.append(f'{fil}: ingen ::error med [{regel}]. Output: {out.strip()[:300]!r}')
+              andre = sorted({r for r in REGLER + ANDRE if r != regel
+                              and any(f'[{r}]' in l for l in errors)})
+              if andre:
+                  fejl.append(f'{fil}: skal kun bryde `{regel}`, men gav ogsaa fejl paa '
+                              f'{", ".join(andre)}:')
+                  fejl.extend('  ' + l for l in errors)
+
+          # 3) Gyldige undtagelser: exit 0, fejlene er blevet advarsler med
+          #    regelnavnet og godkenderen, og den gamle undtagelse giver en
+          #    advarsel om alderen.
+          fil = Path('tests/compose/undtagelse-gyldig.yml')
+          rc, out = koer(fil)
+          warnings = linjer(out, 'warning')
+          if rc != 0 or linjer(out, 'error'):
+              fejl.append(f'{fil}: forventede exit 0 uden fejl, fik exit {rc}:')
+              fejl.extend('  ' + l for l in linjer(out, 'error'))
+          for regel in ('bind-mount', 'host-adgang'):
+              if not any(f'[{regel}]' in l and 'Undtaget' in l for l in warnings):
+                  fejl.append(f'{fil}: ingen ::warning med [{regel}] og "Undtaget". '
+                              f'Advarsler: {warnings!r}')
+          if not any('[undtagelse]' in l and 'aeldre end et aar' in l for l in warnings):
+              fejl.append(f'{fil}: ingen ::warning om at undtagelsen er aeldre end et aar')
+
+          # 4) Ugyldige undtagelser: exit 1, hver mangel er sin egen ::error med
+          #    [undtagelse], de fejl de skulle daekke staar stadig som ::error,
+          #    og den doede undtagelse er en ::warning.
+          fil = Path('tests/compose/undtagelse-ugyldig.yml')
+          rc, out = koer(fil)
+          errors = linjer(out, 'error')
+          if rc != 1:
+              fejl.append(f'{fil}: forventede exit 1, fik {rc}')
+          for mangel in ('godkendt-af', 'dato', 'ukendt regelnavn'):
+              if not any('[undtagelse]' in l and mangel in l for l in errors):
+                  fejl.append(f'{fil}: ingen ::error med [undtagelse] om `{mangel}`')
+          for regel in ('bind-mount', 'ports'):
+              if not any(f'[{regel}]' in l for l in errors):
+                  fejl.append(f'{fil}: fejlen paa `{regel}` skulle staa som ::error, fordi '
+                              f'undtagelsen er ugyldig')
+          if not any('[undtagelse]' in l and 'daekker ingen fejl' in l for l in linjer(out, 'warning')):
+              fejl.append(f'{fil}: ingen ::warning om den doede undtagelse')
+
+          if fejl:
+              for f in fejl:
+                  print(f'::error file={script}::{f}')
+              sys.exit(1)
+          print(f'{script}: ok ({len(gode)} gode eksempler, {len(REGLER)} regler, gyldig og '
+                f'ugyldig undtagelse)')
           PY
