@@ -1,7 +1,7 @@
 ---
 nummer: task-0006
 titel: deploy-update: flere services pr. kald og værn mod forkert image-navn
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-10-02
 ---
@@ -15,14 +15,14 @@ services i én commit. Samtidig skal workflowet nægte at skrive app-imaget ind 
 på et andet image, så en slåfejl i `service` ikke kan erstatte fx databasens image med appens.
 
 ## Færdig når
-- [ ] Et deploy-kald med flere services i inputtet opdaterer alle angivne services i én commit.
-- [ ] Et kald med én service virker som i dag.
-- [ ] Står nogle af servicene allerede på versionen, opdateres resten; står alle der, afsluttes grønt uden commit.
-- [ ] Peger en angiven service i dag på et andet image-navn end det, der skal skrives, stopper kørslen med en dansk fejl, der viser begge navne, og intet committes. Det gælder også ved én service.
-- [ ] Findes en angiven service ikke, eller mangler den et image-felt, stopper kørslen med en dansk fejl, og intet committes. Ingen service er ændret, når én fejler.
-- [ ] Commit-beskeden nævner de services, der blev opdateret.
-- [ ] Valideringen i dette repo afprøver scriptet med flere services, delvis idempotens og værnet, og er grøn.
-- [ ] README beskriver flere services i ét kald og værnet, og caller-eksemplets bemærkning skelner mellem ét image med flere services og flere images.
+- [x] Et deploy-kald med flere services i inputtet opdaterer alle angivne services i én commit.
+- [x] Et kald med én service virker som i dag.
+- [x] Står nogle af servicene allerede på versionen, opdateres resten; står alle der, afsluttes grønt uden commit.
+- [x] Peger en angiven service i dag på et andet image-navn end det, der skal skrives, stopper kørslen med en dansk fejl, der viser begge navne, og intet committes. Det gælder også ved én service.
+- [x] Findes en angiven service ikke, eller mangler den et image-felt, stopper kørslen med en dansk fejl, og intet committes. Ingen service er ændret, når én fejler.
+- [x] Commit-beskeden nævner de services, der blev opdateret.
+- [x] Valideringen i dette repo afprøver scriptet med flere services, delvis idempotens og værnet, og er grøn.
+- [x] README beskriver flere services i ét kald og værnet, og caller-eksemplets bemærkning skelner mellem ét image med flere services og flere images.
 
 ## Sådan bygger vi det
 

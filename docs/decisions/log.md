@@ -10,6 +10,8 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-02 | task-0006 | Opgaven er bygget; script, deploy-update, validering, eksempelfil, README og CLAUDE.md | Alle otte punkter under Færdig når holder ved læsning af diffen; seks scenarier kørt lokalt mod et midlertidigt repo | architect |
+| 2026-10-02 | task-0006 | Developers fire valg godkendt: dubletter i service-listen afvises med exit 2; stdout viser version frem for hel reference; "Pushet til main"-linjen nævner de ændrede services; `worker` i eksempelfilen har ingen networks-blok | Alle inden for opgavens ånd; en worker uden proxy-netværk er det normale, og lint-reglen `alias` gælder kun services på proxy-netværket | architect |
 | 2026-10-02 | task-0004 | Opgaven er bygget; nyt input, nyt trin, to-grenet besked, validering og README | Alle punkter under Færdig når holder ved læsning af diffen; run-blokke og valideringens Python-blokke kørt lokalt | architect |
 | 2026-10-02 | task-0004 | Beskeden om efterladt image skifter kun, når tjek-trinnet faktisk værnede, ikke på inputtet alene | Ellers lover den en afvisning, der ikke sker på grene og forhåndstags. Developers forslag, godkendt | architect |
 | 2026-10-02 | task-0006 | Fund fra task-0004 lagt i task-0006: README-afsnittet Tilbagerulning siger som faktum, at versionstags aldrig overskrives; det holder kun med inputtet slået til | Én sætning i README; task-0006 rører afsnittene omkring alligevel | architect |
