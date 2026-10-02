@@ -130,6 +130,38 @@ task-0003, task-0004, task-0006 (begge rører `deploy-update.yaml`, `tests/compo
 
 ## Developers noter
 
+Gren `task-0005-compose-lint`, fem commits (script, workflow, deploy-update, validering, README). Intet pushet.
+
 ### Hvad er lavet
+
+Holdt op mod *Færdig når*:
+
+- **Dansk fejl med service, regelnavn og linjenummer** — `scripts/compose_lint.py`. Hvert fund skrives som `::error file=<fil>,line=<n>::[<regel>] <service>: <besked>` (advarsler som `::warning`), på stderr som i `update_compose_image.py`. Samme script køres lokalt, i `compose-lint.yaml` og i `deploy-update.yaml`, så formatet er ens alle tre steder. Fund uden regel bruger `[yaml]`, `[compose]`, `[struktur]` og `[undtagelse]`. Rækkefølgen er som i opgaven: parse (ugyldig YAML er én fejl, resten springes over), `docker compose -f <fil> config -q --no-interpolate`, reglerne pr. service og for netværk, undtagelser. Exit 0/1/2.
+- **Referencen passerer** — `tests/compose/ok/reference.yml` er README-referencen med pladsholderne udfyldt, og `tests/compose/ok/varianter.yml` dækker de tilladte varianter (mapping-form med andet variabelnavn, `deploy.resources.limits.memory`, `restart: always`, navngivet volume i lang form, anonymt volume, `network_mode: "service:web"`). `tests/compose/deploy-example.yml` passerer uden ændringer; image-linjerne er ikke rørt.
+- **Undtagelser** — `x-undtagelser` med `service`, `regel`, `begrundelse`, `godkendt-af`, `dato`. Gyldig undtagelse gør fejlene for regel+service til advarsler med godkender og dato i beskeden. Manglende `service`, `godkendt-af` eller `dato` (eller dato ikke `AAAA-MM-DD`), eller ukendt regelnavn, er en fejl, og undtagelsen dækker intet. Dato ældre end 365 dage: advarsel. Undtagelse der ikke rammer noget: advarsel (død). `tests/compose/undtagelse-gyldig.yml` (to undtagelser, den ene gammel) og `tests/compose/undtagelse-ugyldig.yml` (uden godkender, uden dato, ukendt regel, død).
+- **Lokal kørsel uden GitHub og uden Docker** — `shutil.which('docker')` og `docker compose version` afgør om compose-tjekket kører; ellers `::warning` og videre. Samme for `git` (regel `env-fil`): uden git, eller uden for et repo, en advarsel. Efterprøvet lokalt med tom `PATH` og med en fil uden for et repo.
+- **Deploy-jobbet** — `.github/workflows/deploy-update.yaml`: trinnet *Sanity-tjek compose-filen* er erstattet af *Lint compose-filen* med samme `if:`. Kører `scripts/compose_lint.py` fra `.workflow-repo` mod filen efter opdateringen; fejler lint, skrives `::error::` om at intet er committet og at filen skal rettes på `main`, og jobbet stopper før commit-trinnet. Ingen `stack.env` oprettes; kommentaren om Portainer og `stack.env` er væk. Alt andet urørt. `.gitignore`: kun kommentaren ved `stack.env` er ændret (fund fra task-0003).
+- **Valideringen** — `.github/workflows/validate.yaml`: `compose-lint.yaml` i `WORKFLOWS` (job `compose-lint`, input `compose_path`, ingen outputs). Nyt trin *Afprøv scripts/compose_lint.py*: `tests/compose/ok/*.yml` og `deploy-example.yml` skal give exit 0 uden `::error` og uden `[compose]`-fund; `tests/compose/fejl/<regel>.yml` for hver af de 16 regler skal give exit 1 med `[<regel>]` og **ingen anden regel** (så eksemplerne er præcise, og en løsnet regel opdages); en regel uden eksempel eller et eksempel uden regel er en fejl; gyldig undtagelse exit 0 med `::warning` for begge regler og for alderen; ugyldig undtagelse exit 1 med `[undtagelse]`-fejl for hver mangel, de dækkede fejl stadig som `::error`, og den døde som `::warning`. Alle tre Python-blokke kørt lokalt mod den endelige tilstand: grønne. Negativ kontrol: uden `fejl/ports.yml` bliver trinnet rødt. `bash -n` på alle run-blokke i de tre workflows: ok.
+- **Det genbrugelige workflow** — `.github/workflows/compose-lint.yaml`: input `compose_path` med standard, job `compose-lint`, `permissions: contents: read`, `timeout-minutes: 10`, ingen `concurrency`, ingen `secrets:`. Checkout af kalderen; checkout af dette repo i `.workflow-repo` med `repository`, `ref: ${{ github.job_workflow_sha }}`, `persist-credentials: false` og samme `actions/checkout`-SHA som `deploy-update.yaml`; pip install fra `requirements.txt`; kør scriptet.
+- **README** — `README.md`: filtabellen (tre nye rækker, `validate.yaml` nævner selvtesten), intro (tre kald), caller-eksemplet har jobbet `lint` først, uden `if:`, med `permissions: contents: read` og kommentar om hvorfor der ikke er stifilter; nyt afsnit `### compose-lint.yaml` under *Inputs og outputs*; nyt afsnit *Regler for compose-filen* (fundformat, exit-koder, tabellen med de 16 regler, forrang hemmelighed/env-vaerdi og docker-sock/bind-mount, *Undtagelser*, *Lokal kørsel* i PowerShell-form), placeret lige før referencen; *Release* trin 3 (lint i stedet for sanity, ingen stack.env); *Efter en release* punkt 3 og oprydningsafsnittet (lint-fejl i deploy-jobbet); *Migrering* trin 1 (kør lint lokalt før PR'en); *Udgivelse af dette repo* (selvtesten, og at en strammere regel er et brud). `CLAUDE.md`: mappestrukturen har de nye filer, og `validate.yaml`/`tests/compose/`/`requirements.txt`-rækkerne er opdateret.
+
+Eksempelfilerne bruger kun generiske værdier (`example-app`, `postgres:16.4`, `redis:7.4-alpine`, `Navn Navnesen`).
+
 ### Hvad er ikke lavet, og hvorfor
+
+- Kørslen mod de kendte kalderes compose-filer er menneskets punkt før `v1` flyttes; ikke mit. Scriptet kører mod en vilkårlig sti (`..\<app-repo>\deploy\docker-compose.yml`), så det kan gøres uden at kopiere noget.
+- Ellers intet.
+
 ### Uklart
+
+Valg jeg har truffet inden for opgavens ordlyd, som `architect` bør kende:
+
+1. **Image pinnet på digest uden tag** (`image: org/app@sha256:…`) fejler `latest` ("image mangler tag"), selvom en digest er strammere end et tag. Jeg fulgte tabellen bogstaveligt. Skal digest-pinning være tilladt, er det én linje i `lint_service`.
+2. **Undtagelse for `eksternt-netvaerk`**: reglen gælder et netværk, ikke en service, så `service` i undtagelsen matcher netværkets navn. Dokumenteret i README og docstring. Alternativet var at reglen ikke kan undtages.
+3. **Committet `stack.env`/`.env`** (filniveau-delen af `env-fil`) kan ikke undtages — der er ingen service at knytte den til. Tjekket dækker hele repoet (`git ls-files` fra repoets rod, basename præcis `stack.env` eller `.env`; `.env.example` går igennem). Et app-repo med en `.env` committet til lokal udvikling i roden vil derfor fejle.
+4. **`docker-sock` vinder over `bind-mount`** for samme volume (ét volume, én fejl) — samme princip som hemmelighed/env-vaerdi, men ikke nævnt i opgaven.
+5. **`restart: false`** håndteres i scriptet (opgavens YAML 1.1-bemærkning), men `docker compose config` afviser selv værdien ("must be a string"), så varianten står ikke i `tests/compose/fejl/restart.yml` — den ville give et `[compose]`-fund oveni og gøre eksemplet upræcist.
+6. **`tests/compose/fejl/env-fil.yml`** bruger `env_file` i lang form med `required: false`, fordi compose ellers fejler på den manglende `stack.env` før reglen får lov at tale. Reglen rammer `env_file` uanset form.
+7. **Lint-jobbet i caller-eksemplet kører også ved tag-push** (uden `if:`, som opgaven siger). Det er en ekstra kørsel på sekunder; deploy-jobbet linter alligevel før commit. Kommentaren i eksemplet siger det.
+8. **Sprog i scriptets beskeder**: ASCII-translitereret dansk ("laeses", "vaerdi") som i `update_compose_image.py`, og fundene på stderr som dér. README og workflows bruger æøå som hidtil.
+9. **Fund uden for opgaven**: README-afsnittet "Tre ting at vide om eksemplet" har fire punkter (fra før task-0006). Ikke rettet.
