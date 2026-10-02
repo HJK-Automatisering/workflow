@@ -1,7 +1,7 @@
 ---
 nummer: task-0005
 titel: compose-lint: regler for compose-filer i pull requests og før udrulning
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-10-02
 ---
@@ -16,13 +16,13 @@ lokalt før en PR, i pull requests, og i deploy-jobbet før commit. Opgavebeskri
 Reglerne om miljøvariabler er ændret i forhold til opgavebeskrivelsen, fordi Portainer ikke skriver `stack.env`.
 
 ## Færdig når
-- [ ] En compose-fil, der bryder en regel, giver en dansk fejl med service, regelnavn og linjenummer, både ved lokal kørsel, i en pull request og i deploy-jobbet.
-- [ ] En fil efter referencen i README passerer uden fejl.
-- [ ] En gyldig undtagelse gør fejlen til en advarsel; en undtagelse uden godkender og dato, eller med ukendt regelnavn, er selv en fejl; en undtagelse ældre end et år giver en advarsel.
-- [ ] Scriptet kan køres lokalt mod en fil uden GitHub-kontekst og uden Docker; mangler Docker, springes compose-tjekket over med en advarsel.
-- [ ] Deploy-jobbet kører lint i stedet for sanity-tjekket, committer ikke hvis lint fejler, og opretter ikke længere en midlertidig `stack.env`.
-- [ ] Valideringen i dette repo tjekker det nye workflow med samme strukturkrav, kører scriptet mod mindst ét dårligt eksempel pr. regel, et godt eksempel, en gyldig og en ugyldig undtagelse, og er grøn.
-- [ ] README dokumenterer alle regler, undtagelsesformatet og lokal kørsel, og caller-eksemplet har lint-jobbet.
+- [x] En compose-fil, der bryder en regel, giver en dansk fejl med service, regelnavn og linjenummer, både ved lokal kørsel, i en pull request og i deploy-jobbet.
+- [x] En fil efter referencen i README passerer uden fejl.
+- [x] En gyldig undtagelse gør fejlen til en advarsel; en undtagelse uden godkender og dato, eller med ukendt regelnavn, er selv en fejl; en undtagelse ældre end et år giver en advarsel.
+- [x] Scriptet kan køres lokalt mod en fil uden GitHub-kontekst og uden Docker; mangler Docker, springes compose-tjekket over med en advarsel.
+- [x] Deploy-jobbet kører lint i stedet for sanity-tjekket, committer ikke hvis lint fejler, og opretter ikke længere en midlertidig `stack.env`.
+- [x] Valideringen i dette repo tjekker det nye workflow med samme strukturkrav, kører scriptet mod mindst ét dårligt eksempel pr. regel, et godt eksempel, en gyldig og en ugyldig undtagelse, og er grøn.
+- [x] README dokumenterer alle regler, undtagelsesformatet og lokal kørsel, og caller-eksemplet har lint-jobbet.
 
 Efterprøves af mennesket før `v1` flyttes:
 
