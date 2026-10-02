@@ -175,9 +175,84 @@ jobs:
               fejl.append(f'forventede exit 1 og ::error ved ukendt service, fik '
                           f'{r.returncode}: {r.stderr.strip()[:200]}')
 
+          def nulstil():
+              shutil.copyfile(eksempel, arbejdsfil)
+
+          def diff_mod(reference):
+              nu = arbejdsfil.read_text(encoding='utf-8').splitlines(keepends=True)
+              return [l for l in difflib.ndiff(reference, nu) if l[:1] in ('-', '+')]
+
+          # 4) Flere services: web og worker deler image. Exit 0, praecis to
+          #    aendrede linjer, begge image-linjer, og kommentaren paa web bevaret.
+          nulstil()
+          r = koer('web,worker', nyt_image)
+          if r.returncode != 0:
+              fejl.append(f'forventede exit 0 ved web,worker, fik {r.returncode}: {r.stderr.strip()}')
+          aendret = diff_mod(foer)
+          minus = [l for l in aendret if l.startswith('-')]
+          plus = [l for l in aendret if l.startswith('+')]
+          if len(minus) != 2 or len(plus) != 2:
+              fejl.append(f'forventede praecis to aendrede linjer ved web,worker (4 diff-linjer), '
+                          f'fik {len(aendret)}:')
+              fejl.extend('  ' + l.rstrip() for l in aendret)
+          elif not (all('image:' in l and 'example-app:1.4.2' in l for l in minus)
+                    and all(nyt_image in l for l in plus)
+                    and any('# sidste release' in l for l in plus)):
+              fejl.append('de aendrede linjer ved web,worker er ikke de to image-linjer, eller '
+                          'kommentaren paa web er vaek:')
+              fejl.extend('  ' + l.rstrip() for l in aendret)
+          if 'changed=web,worker' not in r.stdout.splitlines():
+              fejl.append(f'forventede linjen `changed=web,worker` paa stdout, fik: {r.stdout.strip()!r}')
+          efter_begge = arbejdsfil.read_text(encoding='utf-8').splitlines(keepends=True)
+
+          # 5) Idempotens med flere services: begge staar der, exit 3, filen uroert.
+          r = koer('web,worker', nyt_image)
+          if r.returncode != 3:
+              fejl.append(f'forventede exit 3 naar begge services staar paa versionen, fik {r.returncode}')
+          if diff_mod(efter_begge):
+              fejl.append('filen blev aendret ved et kald med web,worker der ikke skulle aendre noget')
+
+          # 6) Delvis idempotens: kun worker er sat tilbage. Exit 0, praecis én
+          #    aendret linje, og kun worker i changed=.
+          r = koer('worker', 'ghcr.io/hjk-automatisering/example-app:1.4.2')
+          if r.returncode != 0:
+              fejl.append(f'kunne ikke saette worker tilbage til 1.4.2: exit {r.returncode}')
+          r = koer('web,worker', nyt_image)
+          if r.returncode != 0:
+              fejl.append(f'forventede exit 0 naar kun worker mangler, fik {r.returncode}: {r.stderr.strip()}')
+          if diff_mod(efter_begge):
+              fejl.append('efter delvis opdatering er filen ikke identisk med filen efter fuld opdatering:')
+              fejl.extend('  ' + l.rstrip() for l in diff_mod(efter_begge))
+          if 'changed=worker' not in r.stdout.splitlines():
+              fejl.append(f'forventede linjen `changed=worker` ved delvis opdatering, fik: {r.stdout.strip()!r}')
+
+          # 7) Vaernet: db peger paa postgres, ikke app-imaget. Exit 1, fejlen
+          #    naevner begge navne, filen uroert. Ogsaa naar db staar i en liste.
+          for services in ('db', 'web,db'):
+              nulstil()
+              r = koer(services, nyt_image)
+              if r.returncode != 1 or '::error' not in r.stderr:
+                  fejl.append(f'forventede exit 1 og ::error ved `{services}` (forkert image-navn), fik '
+                              f'{r.returncode}: {r.stderr.strip()[:200]}')
+              elif not ('postgres' in r.stderr and 'ghcr.io/hjk-automatisering/example-app' in r.stderr):
+                  fejl.append(f'fejlen ved `{services}` naevner ikke baade `postgres` og det nye navn: '
+                              f'{r.stderr.strip()[:300]}')
+              if diff_mod(foer):
+                  fejl.append(f'filen blev aendret ved `{services}`, selvom vaernet skulle stoppe alt')
+
+          # 8) Ukendt service i en liste: exit 1, og web er heller ikke aendret.
+          nulstil()
+          r = koer('web,findes-ikke', nyt_image)
+          if r.returncode != 1 or '::error' not in r.stderr:
+              fejl.append(f'forventede exit 1 og ::error ved web,findes-ikke, fik '
+                          f'{r.returncode}: {r.stderr.strip()[:200]}')
+          if diff_mod(foer):
+              fejl.append('filen blev aendret ved web,findes-ikke, selvom én service fejlede')
+
           if fejl:
               for f in fejl:
                   print(f'::error file={script}::{f}')
               sys.exit(1)
-          print(f'{script}: ok (aendring, idempotens, ukendt service)')
+          print(f'{script}: ok (aendring, idempotens, ukendt service, flere services, '
+                f'delvis idempotens, vaern mod forkert image-navn)')
           PY
