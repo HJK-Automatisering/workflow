@@ -21,8 +21,8 @@ en rapport der har stået her i dagevis, er et fund på vej til at blive glemt.>
 
 | Nr. | Titel | Status | Kilde |
 |---|---|---|---|
-| task-0004 | Uforanderlige versionstags via protect_release_tags | planlagt | interview |
 | task-0005 | compose-lint: regler for compose-filer i pull requests og før udrulning | planlagt | interview |
+| task-0006 | deploy-update: flere services pr. kald og værn mod forkert image-navn | planlagt | interview |
 
 <`Status` er `planlagt`, `i-gang` eller `afsluttet`. `Kilde` er `interview`
 eller nummeret på den rapport opgaven kom af.>
@@ -31,7 +31,6 @@ eller nummeret på den rapport opgaven kom af.>
 
 | Emne |
 |---|
-| deploy-update: flere services pr. kald, så et repo med ét image og to services ikke skal køre to deploy-jobs |
 | Lokal validering af workflows, så `validate.yaml`s script kan køres uden GitHub Actions |
 
 <Den grove liste: hvad architect kan se der skal laves. **Ingen numre.**
@@ -45,6 +44,7 @@ ellers fyldes `docs/tasks/` med halve idéer.>
 | task-0001 | Udrulning ved release-tag via deploy-update.yaml | bygget |
 | task-0002 | README med caller-eksempel, release- og rollback-vejledning | bygget |
 | task-0003 | README: stackens variabler substitueres, Portainer skriver ikke stack.env | bygget |
+| task-0004 | Uforanderlige versionstags via protect_release_tags | bygget |
 
 <`Udfald` er `bygget` eller `afvist`. Flyt hertil når architect har vurderet
 opgaven — ikke når udrulningen er sket; udrulning er ikke en status.

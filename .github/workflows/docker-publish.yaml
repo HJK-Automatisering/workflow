@@ -44,6 +44,10 @@ on:
         description: 'Ekstra build-args, én pr. linje. ADVARSEL: build-args ender som ENV i det færdige image og kan læses af alle der kan pulle det. Aldrig hemmeligheder her.'
         type: string
         default: ''
+      protect_release_tags:
+        description: 'Nægter at bygge, hvis versionstagget allerede findes i registryet. En ny bygning kræver et nyt versionsnummer. Gælder kun release-tags på formen vX.Y.Z.'
+        type: boolean
+        default: false
     outputs:
       digest:
         description: 'Image-digest. Brug denne til deploy og verifikation — ikke et tag. Tom på pull_request, hvor der bygges uden at pushe: læg et `if:` på deploy-jobbet i stedet for at lade det fejle på en tom streng.'
@@ -169,6 +173,46 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
+      # Compose-filen peger på versionstagget, ikke på digesten, og
+      # tilbagerulning hviler på at :1.4.2 altid er det samme image. Køres
+      # build-jobbet igen på samme tag, eller slettes og gensættes tagget,
+      # overskrives versionstagget i GHCR uden at nogen ser det. Med inputtet
+      # slået til nægter trinnet derfor at bygge, når tagget allerede findes.
+      #
+      # Ligger efter metadata-trinnet og bruger dets version, så tjek og tags
+      # aldrig kan være uenige om hvad versionen hedder. Login er sket ovenfor,
+      # så opslaget kan læse private pakker. Den præcise kontrol af vX.Y.Z sker
+      # i bash med samme regexp som i deploy-update.yaml — GitHub-udtryk har
+      # ikke regex.
+      #
+      # Et fejlende opslag regnes som "tagget findes ikke": ved første bygning
+      # af et nyt repo findes pakken slet ikke, og værnet er mod fejl, ikke mod
+      # en modstander. Kun et vellykket opslag stopper kørslen.
+      - name: Tjek at versionstagget er ledigt
+        id: protect
+        if: ${{ inputs.protect_release_tags && github.ref_type == 'tag' }}
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "'${TAG}' er ikke et release-tag på formen vX.Y.Z. Tjekket af versionstagget springes over."
+            exit 0
+          fi
+
+          fejl="$(mktemp)"
+          if digest="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}' 2>"${fejl}")"; then
+            echo "::error::Versionstagget ${IMAGE}:${VERSION} findes allerede i registryet og peger på ${digest}. Versionstags overskrives aldrig — en ny bygning kræver et nyt versionsnummer."
+            exit 1
+          fi
+          echo "Opslaget på ${IMAGE}:${VERSION} fejlede, så tagget regnes som ledigt. Output fra opslaget:"
+          sed 's/^/  /' "${fejl}"
+          # Læses af "Rapportér efterladt image": herfra vil en gen-kørsel på
+          # samme tag blive afvist, fordi tagget nu findes.
+          echo "protected=true" >> "$GITHUB_OUTPUT"
+
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
         id: build-and-push
@@ -232,14 +276,23 @@ jobs:
       # Uden denne besked ser det ud præcis som en almindelig byggefejl, hvor
       # der ikke er publiceret noget. Forskellen er væsentlig, og den skal stå
       # i loggen frem for at skulle udledes.
+      #
+      # Har "Tjek at versionstagget er ledigt" værnet om tagget, er rådet et
+      # andet: tagget findes nu, så en gen-kørsel bliver afvist. Imaget skal
+      # væk fra GHCR først — eller der skal tagges en ny version.
       - name: Rapportér efterladt image
         if: ${{ failure() && steps.build-and-push.outputs.digest != '' }}
         env:
           IMAGE: ${{ steps.image.outputs.name }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
           TAGS: ${{ steps.meta.outputs.tags }}
+          PROTECTED: ${{ steps.protect.outputs.protected }}
         run: |
           set -euo pipefail
-          echo "::error::Kørslen er rød, men imaget blev publiceret og er IKKE signeret: ${IMAGE}@${DIGEST} — slet det, eller kør igen når årsagen er rettet."
+          if [[ "${PROTECTED}" == "true" ]]; then
+            echo "::error::Kørslen er rød, men imaget blev publiceret og er IKKE signeret: ${IMAGE}@${DIGEST}. Gen-kørsel vil blive afvist, fordi versionstagget nu findes. Slet imaget i GHCR (inkl. signatur-artefaktet sha256-${DIGEST#sha256:}, hvis det findes), eller tag en ny version."
+          else
+            echo "::error::Kørslen er rød, men imaget blev publiceret og er IKKE signeret: ${IMAGE}@${DIGEST} — slet det, eller kør igen når årsagen er rettet."
+          fi
           echo "Følgende tags peger nu på det usignerede image:"
           echo "${TAGS}" | sed 's/^/  /'

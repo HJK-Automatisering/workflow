@@ -40,7 +40,7 @@ jobs:
           WORKFLOWS = {
               '.github/workflows/docker-publish.yaml': dict(
                   job='build',
-                  inputs=('image_name', 'platforms', 'dockerfile', 'sign'),
+                  inputs=('image_name', 'platforms', 'dockerfile', 'sign', 'protect_release_tags'),
                   outputs=('digest', 'version', 'tags', 'image'),
               ),
               '.github/workflows/deploy-update.yaml': dict(

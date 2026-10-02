@@ -111,7 +111,7 @@ og må aldrig committes, fordi lint-reglen `env-fil` afviser den. Selve ignoreri
 - Caller-skabelonen i agenter-repoet, app-repoerne, Portainer. Ingen tags, ingen udgivelse.
 
 ## Afhænger af
-task-0003, task-0004
+task-0003, task-0004, task-0006 (begge rører `deploy-update.yaml`, `tests/compose/deploy-example.yml` og README; lint bygges sidst, så eksempelfilen med `worker` er på plads)
 
 ## Beslutninger
 - BESLUTTET: Ingen literaler under `environment:`; `hemmelighed` for de kendte nøglemønstre, `env-vaerdi` for resten, `env-fil` forbyder `env_file` helt — Portainer skriver ikke `stack.env` for Git-stacks, og princippet om ingen værdier i compose-filen består. Alternativ B (kun hemmelige nøgler) afvist, fordi en forbindelsesstreng under en neutral nøgle ville slippe igennem. Godkendt af mennesket 2026-10-02.

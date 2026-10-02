@@ -10,6 +10,13 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-02 | task-0004 | Opgaven er bygget; nyt input, nyt trin, to-grenet besked, validering og README | Alle punkter under Færdig når holder ved læsning af diffen; run-blokke og valideringens Python-blokke kørt lokalt | architect |
+| 2026-10-02 | task-0004 | Beskeden om efterladt image skifter kun, når tjek-trinnet faktisk værnede, ikke på inputtet alene | Ellers lover den en afvisning, der ikke sker på grene og forhåndstags. Developers forslag, godkendt | architect |
+| 2026-10-02 | task-0006 | Fund fra task-0004 lagt i task-0006: README-afsnittet Tilbagerulning siger som faktum, at versionstags aldrig overskrives; det holder kun med inputtet slået til | Én sætning i README; task-0006 rører afsnittene omkring alligevel | architect |
+| 2026-10-02 | task-0006 | Værn mod forkert image-navn i deploy-update, også ved én service | En slåfejl i `service` ville ellers erstatte fx databasens image med appens; compose-tjekket fanger det ikke. Prisen er én manuel rettelse ved tilsigtet navneskift. Godkendt af mennesket | architect |
+| 2026-10-02 | task-0006 | Flere services i det eksisterende input `service`, adskilt af komma; alt eller intet; delvis idempotens | Nyt input ved siden af ville kræve at `service` stadig sættes, fordi det er påkrævet. Halvt opdateret fil på main afvist | architect |
+| 2026-10-02 | task-0005 | Lint bygges efter task-0006 | Begge rører deploy-update.yaml, eksempelfilen og README; lint-testene skal se eksempelfilen med `worker` | architect |
+| 2026-10-02 | — | task-0003 udgives ikke som v1.1.1 | Kun README og eksempelfil; README læses fra main, ikke fra et tag. Næste minor-tag samler task-0004 til task-0006 | architect |
 | 2026-10-02 | task-0003 | Opgaven er bygget; README og eksempelfil | Alle punkter under Færdig når holder ved læsning af diffen; scripttesten er grøn lokalt | architect |
 | 2026-10-02 | task-0005 | To fund fra task-0003 lagt i task-0005: kommentaren i deploy-update.yaml ved sanity-trinnet og kommentaren i .gitignore siger stadig, at Portainer genererer stack.env | Sanity-trinnet erstattes alligevel i task-0005; .gitignore-kommentaren er én linje, der hører med i samme oprydning | architect |
 | 2026-10-02 | task-0005 | Lint-jobbet ligger i samme caller-workflow og kører på alle pull requests uden stifilter | Én skabelonfil at vedligeholde; stifilter pr. job kræver en tredjeparts-action. Separat caller-fil afvist. Godkendt af mennesket | architect |
