@@ -10,6 +10,7 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-02 | — | v1.2.0 besluttet med flyt af v1; tags sættes af mennesket, fordi automatikken afviste tag-push fra tråden | Tre additive ændringer (task-0004, task-0005, task-0006): nyt valgfrit input, nyt genbrugeligt workflow, input der tager mere end før. Valideringen grøn på main; lint kørt mod ba-bfo-fagligt-ledelsestilsyn | architect |
 | 2026-10-02 | task-0005 | Alternativ A fastholdt efter lint mod ba-bfo-fagligt-ledelsestilsyn: `DATA_DIR` og `TZ` flyttes til stackens variabler i app-repoet; `mail-client_default` får en undtagelse for `eksternt-netvaerk` i appens compose-fil | Mennesket foretrækker værdierne på stacken frem for at løsne reglen; alternativ B med `CONNECTION` i `hemmelighed` afvist. Ingen ændring i dette repo | architect |
 | 2026-10-02 | task-0005 | Opgaven er bygget; menneskets kørsel mod de kendte kalderes compose-filer står tilbage før `v1` flyttes | Alle developer-punkter under Færdig når holder ved læsning af diffen; selvtesten er grøn lokalt med Docker | architect |
 | 2026-10-02 | task-0005 | Image pinnet på digest uden tag fejler reglen `latest`, som tabellen siger | Regelnavne og semantik deles med agenternes deploy-kontrakt; ingen bruger digest-pinning i dag. Kan løsnes senere som egen opgave | architect |
