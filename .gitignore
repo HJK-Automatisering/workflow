@@ -9,8 +9,9 @@
 *.pfx
 .venv/
 
-# Compose-filer og hemmeligheder, som workflows arbejder med. stack.env
-# genereres af Portainer og må aldrig committes.
+# stack.env hører ikke til modellen: Portainer skriver den ikke for
+# Git-stacks, variablerne sættes på stacken, og lint-reglen `env-fil` afviser
+# en committet stack.env eller .env. Ignoreringen værner mod et uheld.
 stack.env
 
 # Python-støj fra lint- og valideringsscripts
