@@ -10,6 +10,7 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-10-02 | task-0001 | Fase 1 bekræftet i drift på ba-bfo-fagligt-ledelsestilsyn: release udrullet via Portainer, rc-tag bygget uden udrulning, gen-kørsel og git revert virker | Menneskets testkørsel efter v1.1.0. Fase 2 kan påbegyndes | architect |
 | 2026-10-02 | — | v1.1.0 udgivet og v1 flyttet dertil | Fase 1 er additiv (nyt workflow, nyt output, README); kaldere på @v1 får det uden ændring. Valideringen var grøn før tagget | architect |
 | 2026-10-01 | task-0002 | Opgaven er bygget; README, CLAUDE.md og kommentaren ved signeringstrinnet | Alle punkter under Færdig når holder ved læsning mod workflow-filerne; caller-eksemplet er parset og matcher inputs og outputs | architect |
 | 2026-10-01 | task-0002 | Jobbet i caller-eksemplet hedder `build`; skabelonens `publish` omdøbes af agenter-tråden | Navnet siger, hvad jobbet gør; projekterne opdateres alligevel for at få deploy-jobbet | architect |

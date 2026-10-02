@@ -33,8 +33,8 @@ Efterprøvet af developer lokalt og i dette repo:
 Efterprøves af mennesket ved testkørsel på ba-bfo-fagligt-ledelsestilsyn, når det repo har fået
 compose-fil og opdateret caller:
 
-- [ ] Et release-tag fører uden manuel indgriben til en commit på `main` med den nye version, og Portainer udruller den.
-- [ ] Et forhåndstag (fx `-rc1`) bygges, men udrulles ikke.
+- [x] Et release-tag fører uden manuel indgriben til en commit på `main` med den nye version, og Portainer udruller den. (Bekræftet af mennesket 2026-10-02 på ba-bfo-fagligt-ledelsestilsyn, inkl. gen-kørsel og git revert.)
+- [x] Et forhåndstag (fx `-rc1`) bygges, men udrulles ikke. (Bekræftet af mennesket 2026-10-02.)
 
 ## Sådan bygger vi det
 
