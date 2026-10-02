@@ -29,7 +29,7 @@ Hvordan repoet udgives (minor-tag og flyt af `v1`, `v2` ved brud, versionstags f
 | `.github/workflows/deploy-update.yaml` | Genbrugeligt udrulningsworkflow. Verificerer signatur og digest og skriver `<image>:<version>` i compose-filen på `main` |
 | `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows og test af scriptet. Kører kun i dette repo |
 | `.github/dependabot.yml` | Bumper SHA-pinnede actions og pinnen i `requirements.txt` |
-| `scripts/update_compose_image.py` | Opdaterer `services.<service>.image` i en compose-fil og rører intet andet. Hentes af `deploy-update.yaml` under kørslen |
+| `scripts/update_compose_image.py` | Opdaterer `services.<service>.image` på én eller flere services (kommasepareret) i en compose-fil og rører intet andet. Nægter at skrive, hvis en service peger på et andet image-navn. Hentes af `deploy-update.yaml` under kørslen |
 | `tests/compose/` | Eksempelfiler, `validate.yaml` kører scriptet imod |
 | `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af `scripts/` og installeres af `deploy-update.yaml` |
 | `.venv/` | Lokalt virtuelt miljø med indholdet af `requirements.txt`. Ikke versionsstyret |

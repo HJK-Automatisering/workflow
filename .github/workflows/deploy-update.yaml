@@ -10,8 +10,10 @@ name: Deploy update (reusable)
 # den nye, verificerede image-version ind i compose-filen på `main`. Den
 # commit er det, der udløser udrulningen.
 #
-# Repos med flere images kalder workflowet én gang pr. service. Støder to
-# kald sammen på push, klarer retry-trinnet nederst det.
+# Ét image med flere services (fx web og worker fra samme Dockerfile) er ét
+# kald med `service: web,worker`, så én release giver én commit og dermed én
+# udrulning i Portainer. Repos med flere images kalder workflowet én gang pr.
+# image. Støder to kald sammen på push, klarer retry-trinnet nederst det.
 
 on:
   workflow_call:
@@ -23,7 +25,7 @@ on:
         type: string
         default: 'deploy/docker-compose.yml'
       service:
-        description: 'Navnet på servicen under services:, hvis image-felt skal opdateres.'
+        description: 'Navnet på servicen under services:, hvis image-felt skal opdateres. Flere services adskilles med komma (web,worker); alle skal pege på samme image-navn som det, der skrives.'
         type: string
         required: true
       image:
@@ -183,9 +185,14 @@ jobs:
           path: ${{ env.WORKFLOW_REPO_DIR }}
           persist-credentials: false
 
-      # Scriptet ændrer kun services.<service>.image og bevarer kommentarer og
-      # formatering. Exit 3 betyder "stod der allerede" — så kan gen-kørsel af
-      # et deploy-job aldrig give en tom commit.
+      # Scriptet ændrer kun services.<service>.image på de angivne services og
+      # bevarer kommentarer og formatering. Fejler én service — findes ikke,
+      # intet image-felt, eller peger på et andet image-navn — skrives intet.
+      # Exit 3 betyder "stod der allerede" — så kan gen-kørsel af et deploy-job
+      # aldrig give en tom commit. Scriptets stdout vises i loggen, og linjen
+      # `changed=web,worker` fortæller commit-trinnet hvilke services der
+      # faktisk blev ændret, så beskeden ikke nævner en service, der stod der
+      # i forvejen.
       - name: Opdatér image-feltet
         if: steps.release.outputs.release == 'true'
         id: update
@@ -197,17 +204,27 @@ jobs:
           fi
           python -m pip install --quiet -r "${WORKFLOW_REPO_DIR}/requirements.txt"
           rc=0
-          python "${WORKFLOW_REPO_DIR}/scripts/update_compose_image.py" "${COMPOSE_PATH}" "${SERVICE}" "${IMAGE}:${VERSION}" || rc=$?
+          output=$(python "${WORKFLOW_REPO_DIR}/scripts/update_compose_image.py" "${COMPOSE_PATH}" "${SERVICE}" "${IMAGE}:${VERSION}") || rc=$?
+          # Vis scriptets linjer pr. service i loggen; changed=-linjen er til os.
+          if [[ -n "${output}" ]]; then
+            grep -v '^changed=' <<<"${output}" || true
+          fi
           case "${rc}" in
             0)
+              services=$(grep '^changed=' <<<"${output}" | cut -d= -f2-)
+              if [[ -z "${services}" ]]; then
+                echo "::error::Scriptet meldte en ændring, men ikke hvilke services. Det er en fejl i HJK-Automatisering/workflow, ikke i ${GITHUB_REPOSITORY}."
+                exit 1
+              fi
               echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "services=${services}" >> "$GITHUB_OUTPUT"
               ;;
             3)
               echo "changed=false" >> "$GITHUB_OUTPUT"
-              echo "::notice::${SERVICE} står allerede på ${VERSION} i ${COMPOSE_PATH}. Intet at committe."
+              echo "::notice::Alle angivne services (${SERVICE}) står allerede på ${VERSION} i ${COMPOSE_PATH}. Intet at committe."
               ;;
             *)
-              echo "::error::Kunne ikke opdatere ${COMPOSE_PATH}: se fejlen ovenfor. Servicen ${SERVICE} skal findes under services: og have et image:-felt."
+              echo "::error::Kunne ikke opdatere ${COMPOSE_PATH}: se fejlen ovenfor. Hver service i '${SERVICE}' skal findes under services:, have et image:-felt og pege på ${IMAGE}. Intet er ændret."
               exit "${rc}"
               ;;
           esac
@@ -249,13 +266,17 @@ jobs:
         env:
           TAG_SHA: ${{ steps.tag.outputs.sha }}
           BUILD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # De services scriptet faktisk ændrede, kommasepareret, i inputtets
+          # rækkefølge. Kan være færre end inputtet, hvis nogle stod der allerede.
+          SERVICES: ${{ steps.update.outputs.services }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${COMPOSE_PATH}"
+          # `web,worker` skrives som `web, worker` i beskeden.
           git commit --quiet -F - <<MSG
-          deploy(${APP}): ${SERVICE} -> ${VERSION}
+          deploy(${APP}): ${SERVICES//,/, } -> ${VERSION}
 
           Image:  ${IMAGE}:${VERSION}
           Digest: ${DIGEST}
@@ -266,7 +287,7 @@ jobs:
           for forsoeg in 1 2 3; do
             if output=$(git push origin HEAD:main 2>&1); then
               echo "${output}"
-              echo "Pushet til main i forsøg ${forsoeg}: ${SERVICE} -> ${VERSION}. Portainer udruller ved næste poll."
+              echo "Pushet til main i forsøg ${forsoeg}: ${SERVICES//,/, } -> ${VERSION}. Portainer udruller ved næste poll."
               exit 0
             fi
             echo "${output}"
