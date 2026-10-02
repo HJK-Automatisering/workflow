@@ -21,7 +21,6 @@ en rapport der har stået her i dagevis, er et fund på vej til at blive glemt.>
 
 | Nr. | Titel | Status | Kilde |
 |---|---|---|---|
-| task-0002 | README med caller-eksempel, release- og rollback-vejledning | planlagt | interview |
 
 <`Status` er `planlagt`, `i-gang` eller `afsluttet`. `Kilde` er `interview`
 eller nummeret på den rapport opgaven kom af.>
@@ -33,7 +32,6 @@ eller nummeret på den rapport opgaven kom af.>
 | Første testkørsel af udrulningen på ba-bfo-fagligt-ledelsestilsyn efter udgivelse af `v1.1.0` |
 | GitOps fase 2: `compose-lint.yaml` med lint-script, `protect_release_tags` og selvtest i `validate.yaml` |
 | Lokal validering af workflows, så `validate.yaml`s script kan køres uden GitHub Actions |
-| Udgivelsesprocedure for dette repo: hvornår `v1` flyttes, og hvornår noget kræver `v2` |
 
 <Den grove liste: hvad architect kan se der skal laves. **Ingen numre.**
 Et emne får først et nummer når interviewet har gjort det udførbart —
@@ -44,6 +42,7 @@ ellers fyldes `docs/tasks/` med halve idéer.>
 | Nr. | Titel | Udfald |
 |---|---|---|
 | task-0001 | Udrulning ved release-tag via deploy-update.yaml | bygget |
+| task-0002 | README med caller-eksempel, release- og rollback-vejledning | bygget |
 
 <`Udfald` er `bygget` eller `afvist`. Flyt hertil når architect har vurderet
 opgaven — ikke når udrulningen er sket; udrulning er ikke en status.
