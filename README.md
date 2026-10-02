@@ -161,8 +161,12 @@ Tre ting at vide om eksemplet:
   aflyst, mens det venter. Imaget `1.2.4` er bygget og signeret, men står
   aldrig i compose-filen. Compose-filen ender på `1.2.5`, som er det, man
   ville have alligevel.
+- **Ét image, flere services:** kører fx `web` og `worker` fra samme image,
+  så skriv `service: web,worker`. Begge opdateres i én commit, så én release
+  giver én udrulning i Portainer. Alle services i listen skal pege på samme
+  image-navn — en slåfejl, der rammer fx `db`, afvises, og intet ændres.
 - **Flere images i samme repo:** kald `deploy-update.yaml` én gang pr.
-  service, som to deploy-jobs med hver sin `service`. Rammer de hinanden på
+  image, som to deploy-jobs med hver sin `service`. Rammer de hinanden på
   push, henter workflowet `main` igen og prøver igen, op til tre gange.
 
 Dockerfilen skal have `ARG APP_VERSION` og `ARG GIT_SHA`. Build-workflowet
@@ -218,7 +222,7 @@ verificerede digest. Har ingen outputs.
 | Input | Standard | Beskrivelse |
 |---|---|---|
 | `compose_path` | `deploy/docker-compose.yml` | Sti til compose-filen i det kaldende repo |
-| `service` | *(påkrævet)* | Navnet på servicen under `services:`, hvis `image:`-felt skal opdateres |
+| `service` | *(påkrævet)* | Navnet på servicen under `services:`, hvis `image:`-felt skal opdateres. Flere services adskilles med komma, fx `web,worker`; de opdateres i én commit. Alle skal pege på samme image-navn: peger en af dem på et andet image end det, der skal skrives, stopper jobbet med en fejl, der viser begge navne, og intet ændres |
 | `image` | *(påkrævet)* | Fuld image-reference uden tag, med registry og små bogstaver. Tag outputtet `image` fra `docker-publish.yaml`. **Workflowet logger fast ind på `ghcr.io`** — et image i et andet registry kan ikke verificeres eller slås op |
 | `digest` | *(påkrævet)* | Digest på det byggede image. Tag outputtet `digest` fra `docker-publish.yaml`. Det er digesten, der verificeres — ikke tagget |
 | `version` | *(påkrævet)* | Versionen uden `v`, fx `1.2.3`. Tag outputtet `version` fra `docker-publish.yaml`. Skrives som `<image>:<version>` i compose-filen |
@@ -278,14 +282,17 @@ Hvad der sker derefter:
    - Logger ind på `ghcr.io` og verificerer signaturen med den stramme regel.
    - Slår `<image>:1.2.3` op i registryet og kræver, at det peger på præcis den
      verificerede digest.
-   - Opdaterer `image:` på den angivne service til `<image>:1.2.3`. Kun den
-     linje ændres; kommentarer og formatering bevares. Står versionen der
-     allerede, afsluttes grønt uden commit.
+   - Opdaterer `image:` på de angivne services til `<image>:1.2.3`. Kun de
+     linjer ændres; kommentarer og formatering bevares. Peger en af
+     servicene på et andet image-navn, eller findes den ikke, stoppes der
+     med en fejl, før noget er skrevet. Står nogle af servicene allerede på
+     versionen, opdateres resten; står alle der, afsluttes grønt uden commit.
    - Kører `docker compose config` som sanity-tjek med en tom, midlertidig
      `stack.env`.
    - Committer som `github-actions[bot]` med beskeden
-     `deploy(<app>): <service> -> 1.2.3` og pusher til `main`. Ved konflikt
-     hentes `main` igen, op til tre gange.
+     `deploy(<app>): <service> -> 1.2.3` — ved flere services
+     `deploy(<app>): web, worker -> 1.2.3`, kun med dem, der blev ændret — og
+     pusher til `main`. Ved konflikt hentes `main` igen, op til tre gange.
 4. **Portainer opdager ændringen ved næste poll.** Der er ingen webhook, så det
    er polling-intervallet på stacken, der afgør ventetiden. Portainers standard
    er 5 minutter; regn med op til intervallet plus tiden til at pulle imaget og
@@ -306,8 +313,10 @@ git push origin main
 ```
 
 Compose-filen peger så igen på den forrige version, og Portainer udruller den
-ved næste poll. Versionstags overskrives aldrig i GHCR, så det forrige image
-findes stadig og er præcis det, der kørte før.
+ved næste poll. Det forrige image findes stadig i GHCR og er præcis det, der
+kørte før — **forudsat at `protect_release_tags` er slået til** i kalderens
+build-job, som i eksemplet ovenfor. Uden det kan et versionstag være blevet
+bygget igen og pege på et andet image end det, der kørte.
 
 **Tilbagerulningen gælder imaget — ikke databasen.** Har den nye version kørt
 en databasemigrering, kører det gamle image nu mod et skema, det ikke kender.
@@ -327,7 +336,7 @@ version kører. Det skal nogen tjekke:
 1. **I Actions:** begge jobs grønne. Deploy-jobbets log slutter med
    `Pushet til main … Portainer udruller ved næste poll.`
 2. **På `main`:** en commit `deploy(<app>): <service> -> <version>` fra
-   `github-actions[bot]`, der kun ændrer image-linjen.
+   `github-actions[bot]`, der kun ændrer image-linjen på de nævnte services.
 3. **I Portainer**, når polling-intervallet er gået: stacken viser den nye
    image-reference, containeren er genskabt, og dens log viser den nye
    `APP_VERSION` ved opstart. Står stacken stadig på den gamle version, så se
@@ -352,8 +361,11 @@ Hvad der skal ryddes op, afhænger af hvor det gik galt:
   der tagges en ny version.
 - **Deploy-jobbet rødt:** imaget er bygget og signeret, men compose-filen er
   ikke ændret. Fejlbeskeden er på dansk og siger, hvad der mangler — tag på
-  forkert gren, forkert `service`, manglende compose-fil. Ret det og kør
-  deploy-jobbet igen fra Actions; det er ufarligt at gentage.
+  forkert gren, forkert `service`, manglende compose-fil, eller en service i
+  `service`, der peger på et andet image-navn end det, der skulle skrives
+  (beskeden viser begge navne). Ret det og kør deploy-jobbet igen fra
+  Actions; det er ufarligt at gentage. Er skiftet af image-navn tilsigtet,
+  rettes linjen i hånden på `main` først.
 
 **Signaturen er et selvstændigt artefakt i GHCR.** cosign v3 hæfter den på
 imaget som en OCI-referrer med fallback-tagget `sha256-<digest>` — **uden**
