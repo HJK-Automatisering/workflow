@@ -50,7 +50,8 @@ regelnavn, er selv en fejl, og undtagelsen daekker saa intet. En dato aeldre
 end et aar giver en advarsel; en undtagelse der ikke rammer nogen fejl, er
 doed og giver ogsaa en advarsel. For reglen `eksternt-netvaerk` er `service`
 netvaerkets navn, fordi reglen gaelder et netvaerk og ikke en service. Fund
-uden service - en committet .env eller stack.env - kan ikke undtages.
+uden service - en committet .env eller stack.env i compose-filens mappe -
+kan ikke undtages.
 
 Hvorfor ruamel.yaml: den kender linjen for hver noegle og hvert listeelement,
 saa fejlen kan pege paa den linje der skal rettes. pyyaml kan ikke det.
@@ -365,9 +366,12 @@ def lint_netvaerk(doc) -> list[Fund]:
 
 
 def lint_env_filer(path: Path) -> list[Fund]:
-    """Tjek med `git ls-files`, om en stack.env eller .env er committet i det
-    repo compose-filen ligger i. Filsystemet duer ikke: en lokal .env ligger
-    der med vilje og er ignoreret af git."""
+    """Tjek med `git ls-files`, om en stack.env eller .env er committet i
+    compose-filens egen mappe. Kun den mappe: docker compose laeser alene en
+    .env fra projektmappen, saa en committet .env andre steder i repoet (fx
+    roden, som nogle upstream-projekter kraever) er usynlig for stacken.
+    Filsystemet duer ikke: en lokal .env ligger der med vilje og er ignoreret
+    af git."""
     git = shutil.which('git')
     if git is None:
         return [Fund('env-fil', None, None, 'git findes ikke paa denne maskine; tjekket for en '
@@ -393,13 +397,22 @@ def lint_env_filer(path: Path) -> list[Fund]:
         return [Fund('env-fil', None, None, f'`git ls-files` fejlede ({r.stderr.strip()[:200]}); '
                                                f'tjekket for en committet stack.env eller .env er '
                                                f'sprunget over.', advarsel=True)]
+    # Compose-filens mappe relativt til repo-roden, med / som skilletegn som i
+    # `git ls-files`. Ligger compose-filen i selve roden, er mappen tom streng.
+    compose_mappe = path.resolve().parent.relative_to(Path(rod).resolve()).as_posix()
+    if compose_mappe == '.':
+        compose_mappe = ''
     fund = []
     for sti in r.stdout.split('\0'):
-        if sti and sti.rsplit('/', 1)[-1] in ENV_FILNAVNE:
+        if not sti:
+            continue
+        mappe, _, navn = sti.rpartition('/')
+        if navn in ENV_FILNAVNE and mappe == compose_mappe:
             fund.append(Fund('env-fil', None, None,
-                             f'`{sti}` er committet i repoet. Variabler og hemmeligheder saettes '
-                             f'paa stacken i Portainer og hoerer aldrig i repoet. Fjern filen fra '
-                             f'git (`git rm --cached`) og sikr at .gitignore daekker den.'))
+                             f'`{sti}` er committet i compose-filens mappe og laeses derfor af '
+                             f'stacken naar den koerer. Variabler og hemmeligheder saettes paa '
+                             f'stacken i Portainer og hoerer aldrig her. Fjern filen fra git '
+                             f'(`git rm --cached`) og sikr at .gitignore daekker den.'))
     return fund
 
 
