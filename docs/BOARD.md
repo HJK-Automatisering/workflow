@@ -30,6 +30,8 @@ eller nummeret på den rapport opgaven kom af.>
 | Emne |
 |---|
 | Lokal validering af workflows, så `validate.yaml`s script kan køres uden GitHub Actions |
+| env-fil-reglen: compose-filens mappe skal komme fra git selv, så symlinks og junctions giver en advarsel og ikke et crash |
+| Selvtest i `validate.yaml` af env-fil-reglens afgrænsning til compose-filens mappe |
 
 <Den grove liste: hvad architect kan se der skal laves. **Ingen numre.**
 Et emne får først et nummer når interviewet har gjort det udførbart —
