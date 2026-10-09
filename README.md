@@ -588,7 +588,7 @@ forkerte argumenter.
 | `host-adgang` | `network_mode: host`, `pid: host`, `devices`, `cap_add`, `sysctls` eller `security_opt` |
 | `hemmelighed` | en nøgle under `environment:` indeholder `PASSWORD`, `PASSWD`, `SECRET`, `TOKEN` eller `CREDENTIALS` som delstreng, eller `KEY` eller `PRIVATE` som helt led adskilt af `_` (`API_KEY` fejler, `KEYCLOAK_URL` gør ikke), og værdien ikke er præcis `${NAVN}`. `${NAVN:-standard}` og `${NAVN-standard}` fejler også |
 | `env-vaerdi` | enhver anden værdi under `environment:`, der ikke er præcis `${NAVN}`. En nøgle uden værdi fejler også. Variabelnavnet behøver ikke være lig nøglen |
-| `env-fil` | `env_file:` findes, eller en `stack.env` eller `.env` er committet i repoet. Tjekket bruger `git ls-files`; uden git springes det over med en advarsel |
+| `env-fil` | `env_file:` findes, eller en `stack.env` eller `.env` er committet i **compose-filens egen mappe** — den eneste mappe, hvis `.env` docker compose (og dermed stakken) læser. En committet `.env` andre steder i repoet (fx roden, som nogle upstream-projekter kræver) rammes ikke. Tjekket bruger `git ls-files`; uden git springes det over med en advarsel |
 | `restart` | `restart` mangler eller er `no` |
 | `mem-limit` | `mem_limit` og `deploy.resources.limits.memory` mangler begge |
 | `logging` | `logging.options.max-size` eller `max-file` mangler |
