@@ -1,7 +1,7 @@
 ---
 nummer: task-0007
 titel: Afgræns env-fil-reglen til compose-filens mappe
-status: planlagt
+status: i-gang
 kilde: interview
 oprettet: 2026-10-09
 ---
@@ -71,3 +71,42 @@ intet
 
 <Alt over denne overskrift ejes af architect. Alt herunder skrives kun af
 developer, som aldrig retter i definitionen ovenfor.>
+
+### Hvad er lavet
+- `scripts/compose_lint.py`, `lint_env_filer`: compose-filens mappe udregnes
+  relativt til repo-roden (`path.resolve().parent.relative_to(rod)`, `.` →
+  tom streng), og kun `git ls-files`-stier hvis mappe-del matcher flagges.
+  Dækker både compose i undermappe og compose i selve roden.
+- Fejlteksten siger nu at filen er committet i compose-filens mappe og derfor
+  læses af stacken når den kører (ASCII-dansk som resten af scriptet).
+- Modulets regelkommentar (docstring, undtagelses-afsnittet) præciseret:
+  fund uden service er en committet `.env`/`stack.env` *i compose-filens
+  mappe*. `lint_env_filer`s egen docstring forklarer afgrænsningen.
+- `README.md`, rækken `env-fil` under "Regler for compose-filen": beskriver
+  den nye afgrænsning, inkl. at rodens `.env` ikke rammes når compose ligger
+  i en undermappe.
+- `env_file:`-tjekket på service-niveau er uændret (koden ikke rørt);
+  `tests/compose/fejl/env-fil.yml` fejler stadig med `[env-fil]`.
+- Advarsels-fallbacks uændrede: mappe-udregningen sker først efter at både
+  `rev-parse` og `ls-files` er lykkedes, så git-mangler/ikke-repo/timeout/
+  ls-files-fejl rammer præcis samme kodeveje som før. "Ikke et git-repo"
+  efterprøvet manuelt: advarsel + exit 0.
+- Efterprøvet mod scratch-git-repo i $TMPDIR (env-filerne committet via
+  git-plumbing, uden at materialisere dem):
+  - ingen committet env-fil → ok (exit 0)
+  - `.env` committet i roden, compose i `deploy/` → ok (exit 0)
+  - samme repo, compose i roden → 1 fejl på `.env` (exit 1)
+  - `.env` committet i både roden og `deploy/`, compose i `deploy/` →
+    præcis 1 fejl, på `deploy/.env` (exit 1)
+  - `deploy/stack.env` oveni → 2 fejl (exit 1)
+  - `.env` i en tredje undermappe → stadig kun deploy-fundene
+- Hele fixture-harnessen kørt lokalt som `validate.yaml` gør (venv i $TMPDIR
+  med ruamel.yaml 0.19.1 fra requirements.txt): 3 gode eksempler exit 0 uden
+  `[compose]`-fund, alle 16 `fejl/<regel>.yml` exit 1 med deres egen regel,
+  begge undtagelsesfiler som forventet.
+
+### Hvad er ikke lavet, og hvorfor
+intet
+
+### Uklart
+intet
