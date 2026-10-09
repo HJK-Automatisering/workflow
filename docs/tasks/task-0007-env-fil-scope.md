@@ -1,7 +1,7 @@
 ---
 nummer: task-0007
 titel: Afgræns env-fil-reglen til compose-filens mappe
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-10-09
 ---
