@@ -5,6 +5,7 @@ services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     environment:
       - DB_SERVER=${DB_SERVER}
       - TZ=Europe/Copenhagen
@@ -19,6 +20,7 @@ services:
   worker:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     environment:
       WORKERS: 4
       DB_SERVER: ${DATABASE_HOST}

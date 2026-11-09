@@ -4,6 +4,7 @@ services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     logging:
       options:
         max-size: "10m"
@@ -12,6 +13,7 @@ services:
   worker:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     deploy:
       resources:
         limits:

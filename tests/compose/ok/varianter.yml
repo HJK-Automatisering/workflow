@@ -35,6 +35,8 @@ services:
         source: cache-data
         target: /data
       - /tmp
+    networks:
+      - default
     mem_limit: 128m
     logging:
       options:

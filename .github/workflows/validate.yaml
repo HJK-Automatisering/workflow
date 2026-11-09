@@ -283,6 +283,7 @@ jobs:
               'build', 'latest', 'privileged', 'docker-sock', 'bind-mount', 'host-adgang',
               'hemmelighed', 'env-vaerdi', 'env-fil', 'restart', 'mem-limit', 'logging',
               'ports', 'container-name', 'eksternt-netvaerk', 'alias', 'unoedigt-netvaerk',
+              'implicit-netvaerk',
           )
           # Fund der ikke er regler. Et eksempel maa ikke snuble over dem - saa
           # viser det ikke det, det skulle.

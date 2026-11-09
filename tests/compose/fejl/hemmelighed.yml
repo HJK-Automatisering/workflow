@@ -5,6 +5,7 @@ services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     environment:
       - DB_PASSWORD=${DB_PASSWORD}
       - API_KEY=abc123
@@ -19,6 +20,7 @@ services:
   worker:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     environment:
       CLIENT_SECRET: s3cr3t
       AUTH_TOKEN:
