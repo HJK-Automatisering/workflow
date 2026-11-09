@@ -31,7 +31,7 @@ Hvordan repoet udgives (minor-tag og flyt af `v1`, `v2` ved brud, versionstags f
 | `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows og selvtest af begge scripts mod `tests/compose/`. Kører kun i dette repo |
 | `.github/dependabot.yml` | Bumper SHA-pinnede actions og pinnen i `requirements.txt` |
 | `scripts/update_compose_image.py` | Opdaterer `services.<service>.image` på én eller flere services (kommasepareret) i en compose-fil og rører intet andet. Nægter at skrive, hvis en service peger på et andet image-navn. Hentes af `deploy-update.yaml` under kørslen |
-| `scripts/compose_lint.py` | Linter en compose-fil mod de 16 regler i README (*Regler for compose-filen*) med undtagelser i `x-undtagelser`. Regelnavnene deles med agenternes deploy-kontrakt. Hentes af `compose-lint.yaml` og `deploy-update.yaml` under kørslen |
+| `scripts/compose_lint.py` | Linter en compose-fil mod de 17 regler i README (*Regler for compose-filen*) med undtagelser i `x-undtagelser`. Regelnavnene deles med agenternes deploy-kontrakt. Hentes af `compose-lint.yaml` og `deploy-update.yaml` under kørslen |
 | `tests/compose/` | Eksempelfiler til `validate.yaml`: `deploy-example.yml` til scripttesten for `update_compose_image.py` (skal selv være regelret), `ok/` gode eksempler, `fejl/<regel>.yml` ét dårligt pr. regel, `undtagelse-gyldig.yml` og `undtagelse-ugyldig.yml` |
 | `requirements.txt` | `ruamel.yaml`, pinnet. Bruges af `scripts/` og installeres af `deploy-update.yaml` og `compose-lint.yaml` |
 | `.venv/` | Lokalt virtuelt miljø med indholdet af `requirements.txt`. Ikke versionsstyret |

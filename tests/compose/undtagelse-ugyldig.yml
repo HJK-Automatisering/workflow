@@ -25,6 +25,7 @@ services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     volumes:
       - /srv/example/config:/app/config:ro
     ports:

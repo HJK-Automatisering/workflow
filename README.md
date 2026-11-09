@@ -596,6 +596,7 @@ forkerte argumenter.
 | `container-name` | `container_name` findes. Navnet kolliderer på tværs af stacks |
 | `eksternt-netvaerk` | et netværk med `external: true` er ikke `nginx-proxy-manager_default` |
 | `alias` | en service på `nginx-proxy-manager_default` mangler et netværksalias. Ingen krav til aliasets form |
+| `unoedigt-netvaerk` | et netværk stacken selv opretter, har kun én service på sig. Det gælder også `default`, som en service står på, når den ikke har `networks:` eller `network_mode`. Hvert netværk optager et adresseområde på værten, og der er kun plads til omkring 31. Står servicen på andre netværk, fjernes det overflødige; står den kun på det ene, sættes `network_mode: bridge` |
 
 `environment:` tjekkes i både mapping-form (`NØGLE: ${NØGLE}`) og listeform
 (`- NØGLE=${NØGLE}`). Én nøgle giver én fejl; `hemmelighed` vinder over
@@ -621,7 +622,7 @@ x-undtagelser:
   regelnavn, er **selv en fejl** og dækker intet.
 - Undtagelser udløber ikke, men en `dato` ældre end et år giver en advarsel.
 - En undtagelse, der ikke rammer nogen fejl, er død og giver en advarsel.
-- For `eksternt-netvaerk` er `service` netværkets navn. En committet
+- For `eksternt-netvaerk` og `unoedigt-netvaerk` er `service` netværkets navn. En committet
   `stack.env` eller `.env` kan ikke undtages.
 
 ### Lokal kørsel
@@ -653,6 +654,8 @@ services:
       - DB_SERVER=${DB_SERVER}
       - DB_PASSWORD=${DB_PASSWORD}
     networks:
+      # `default` er her kun fordi `db` også står på det. Har stacken én
+      # service, fjernes linjen - ellers fejler `unoedigt-netvaerk`.
       default:
       nginx-proxy-manager_default:
         aliases:

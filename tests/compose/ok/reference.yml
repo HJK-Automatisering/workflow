@@ -12,6 +12,8 @@ services:
       - DB_SERVER=${DB_SERVER}
       - DB_PASSWORD=${DB_PASSWORD}
     networks:
+      # `default` er her kun fordi `db` også står på det. Har stacken én
+      # service, fjernes linjen - ellers fejler `unoedigt-netvaerk`.
       default:
       nginx-proxy-manager_default:
         aliases:

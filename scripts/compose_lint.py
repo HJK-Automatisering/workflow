@@ -48,8 +48,9 @@ En gyldig undtagelse goer fejlene for den regel paa den service til
 advarsler. Manglende `service`, `godkendt-af` eller `dato`, eller et ukendt
 regelnavn, er selv en fejl, og undtagelsen daekker saa intet. En dato aeldre
 end et aar giver en advarsel; en undtagelse der ikke rammer nogen fejl, er
-doed og giver ogsaa en advarsel. For reglen `eksternt-netvaerk` er `service`
-netvaerkets navn, fordi reglen gaelder et netvaerk og ikke en service. Fund
+doed og giver ogsaa en advarsel. For reglerne `eksternt-netvaerk` og
+`unoedigt-netvaerk` er `service` netvaerkets navn, fordi reglen gaelder et
+netvaerk og ikke en service. Fund
 uden service - en committet .env eller stack.env i compose-filens mappe -
 kan ikke undtages.
 
@@ -80,7 +81,7 @@ EXIT_ERROR = 1
 REGLER = (
     'build', 'latest', 'privileged', 'docker-sock', 'bind-mount', 'host-adgang',
     'hemmelighed', 'env-vaerdi', 'env-fil', 'restart', 'mem-limit', 'logging',
-    'ports', 'container-name', 'eksternt-netvaerk', 'alias',
+    'ports', 'container-name', 'eksternt-netvaerk', 'alias', 'unoedigt-netvaerk',
 )
 
 PROXY_NETVAERK = 'nginx-proxy-manager_default'
@@ -365,6 +366,62 @@ def lint_netvaerk(doc) -> list[Fund]:
     return fund
 
 
+def lint_netvaerk_brug(services: dict, doc) -> list[Fund]:
+    """Et netvaerk stacken selv opretter, med kun én service paa.
+
+    Hvert netvaerk optager et adresseomraade paa vaerten, og Dockers
+    standardpuljer giver kun plads til omkring 31. Et netvaerk med én service
+    paa forbinder ingenting - det er bare et omraade der er brugt op. Compose
+    opretter `default` saa snart én service staar paa det, og det goer den
+    ogsaa uden at det er skrevet: en service uden `networks:` og uden
+    `network_mode` staar paa `default`. Eksterne netvaerk oprettes ikke af
+    stacken og taelles ikke.
+    """
+    top = doc.get('networks') if isinstance(doc.get('networks'), dict) else {}
+
+    def eksternt(navn: str) -> bool:
+        spec = top.get(navn)
+        if not isinstance(spec, dict):
+            return False
+        external = spec.get('external')
+        return er_sand(external) or isinstance(external, dict)
+
+    # netvaerk -> [(service, linje, servicens andre netvaerk)]
+    brug: dict[str, list[tuple[str, int | None, list[str]]]] = {}
+    for navn, svc in services.items():
+        if not isinstance(svc, dict) or 'network_mode' in svc:
+            continue
+        svc_line = key_line(services, navn)
+        nets = svc.get('networks')
+        if nets is None:
+            paa = [('default', svc_line)]
+        elif isinstance(nets, list):
+            paa = [(str(n), item_line(nets, i, svc_line)) for i, n in enumerate(nets)]
+        elif isinstance(nets, dict):
+            paa = [(str(n), key_line(nets, n, svc_line)) for n in nets]
+        else:
+            continue
+        for net, line in paa:
+            andre = [n for n, _ in paa if n != net]
+            brug.setdefault(net, []).append((str(navn), line, andre))
+
+    fund: list[Fund] = []
+    for net, medlemmer in brug.items():
+        if len(medlemmer) != 1 or eksternt(net):
+            continue
+        service, line, andre = medlemmer[0]
+        if andre:
+            raad = (f'Fjern `{net}` fra servicen; den staar allerede paa '
+                    f'{", ".join(f"`{n}`" for n in andre)}.')
+        else:
+            raad = ('Saet `network_mode: bridge`, saa servicen bruger vaertens faelles netvaerk '
+                    'i stedet for at faa sit eget.')
+        fund.append(Fund('unoedigt-netvaerk', net, line,
+                         f'kun servicen `{service}` er paa netvaerket, saa det forbinder ingenting '
+                         f'og optager et af vaertens faa adresseomraader. {raad}'))
+    return fund
+
+
 def lint_env_filer(path: Path) -> list[Fund]:
     """Tjek med `git ls-files`, om en stack.env eller .env er committet i
     compose-filens egen mappe. Kun den mappe: docker compose laeser alene en
@@ -489,7 +546,7 @@ def anvend_undtagelser(doc, fund: list[Fund]) -> list[Fund]:
         if not isinstance(service, str) or not service.strip():
             fund.append(Fund('undtagelse', None, line,
                              f'undtagelsen {emne} mangler `service` (servicens navn under `services:`; '
-                             f'for `eksternt-netvaerk` netvaerkets navn).'))
+                             f'for `eksternt-netvaerk` og `unoedigt-netvaerk` netvaerkets navn).'))
             gyldig = False
         if not isinstance(regel, str) or regel not in REGLER:
             fund.append(Fund('undtagelse', None, key_line(u, 'regel', line),
@@ -566,6 +623,7 @@ def lint(path: Path) -> list[Fund]:
         fund.extend(lint_service(str(navn), svc, svc_line))
 
     fund.extend(lint_netvaerk(doc))
+    fund.extend(lint_netvaerk_brug(services, doc))
     fund.extend(lint_env_filer(path))
     return anvend_undtagelser(doc, fund)
 
