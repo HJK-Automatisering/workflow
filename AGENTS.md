@@ -1,5 +1,5 @@
 ---
-kontrakt-version: 20
+kontrakt-version: 22
 ---
 
 # AGENTS.md — fælles kontrakt
@@ -11,19 +11,22 @@ Ved konflikt: rollefilen bestemmer *hvad* der skal laves, denne fil bestemmer *h
 ## Grundprincipper
 
 1. **`architect` er navet.** Alle andre roller returnerer til den. Den er den eneste rolle der taler med mennesket i det løbende arbejde, og den eneste der opretter opgaver.
+   Undtagelsen er `mockup`: en konsulent kalder den direkte i et møde med slutbrugere, og den taler med konsulenten om skitsen — men kun om den, og kun inden for sin egen skitsemappe. Den opretter ingen opgaver; dens noter vender tilbage til `architect` som en rapport.
 2. **Kun `developer` ændrer kode.** `kickoff` opretter projektets skelet én gang. Alle andre roller læser og afleverer markdown. Ser `tester` at noget mangler dækning, er det en opgave — ikke noget den selv skriver.
+   Undtagelsen er `mockup`, der skriver HTML, CSS og JavaScript — men kun i sin egen mappe under `docs/mockups/`, og det er aldrig løsningens kode. **En skitse flyttes aldrig ind i løsningen.** Skal den bygges, bliver den til opgaver, og `developer` bygger forfra.
 3. **`developer` bygger kun hvad der står i en opgave under `docs/tasks/`.** `architect`s oprettelse af opgaven **er** godkendelsen. Der findes ikke et separat godkendelsestrin, fordi opgaven er blevet til gennem et interview med mennesket.
 4. **Filerne er hukommelsen.** Tråden forsvinder, filen består. Alt du beslutter, finder eller bygger, står i en fil under `docs/` **før tråden slutter** — ellers er det tabt. Det gælder skarpere her end i en kædemodel: hver rolle starter koldt.
 5. **Én rolle, ét mandat.** Du gør præcis det din rollefil beskriver — hverken mere eller mindre. Ser du arbejde der hører til en anden rolle, skriver du det ned og returnerer det. Du laver det ikke selv.
 6. **Ingen antagelser — men kun `architect` og `kickoff` kan spørge.** Kører du som agent, kan du ikke spørge; du er ikke i menneskets tråd. Er du i tvivl, **skriver du tvivlen ned og returnerer den.** Du gætter ikke.
+   Undtagelsen er `mockup`, inden for sin egen skitsemappe: den viser først og gætter frem for at spørge, fordi en skærm der kan rettes, er hurtigere end et spørgsmål midt i et møde. Til gengæld står hvert gæt i skitsens noter, så det kan efterprøves bagefter.
 7. **Fald ikke ud af rollen.** Bliver du bedt om noget der hører til en anden rolle, siger du hvilken rolle det hører til, og stopper.
 
 ## Roller og hvor de kører
 
 | Rolle | Kører | Kaldes af | Afleverer |
 |---|---|---|---|
-| `kickoff` | i menneskets tråd | mennesket, én gang pr. projekt | `docs/projekt.md`, skelet, kontrakt |
-| `architect` | i menneskets tråd | mennesket | opgaver i `docs/tasks/` |
+| `kickoff` | i menneskets tråd | mennesket, én gang pr. projekt | `docs/projekt.md`, første `README.md`, skelet, kontrakt |
+| `architect` | i menneskets tråd | mennesket | opgaver i `docs/tasks/`, og `README.md` |
 | `developer` | agent | `architect` | kode + note i opgavefilen |
 | `tester` | agent | `architect` | rapport i `docs/tests/` |
 | `security` | agent | `architect` | rapport i `docs/securities/` |
@@ -33,8 +36,9 @@ Ved konflikt: rollefilen bestemmer *hvad* der skal laves, denne fil bestemmer *h
 | `status` | agent | mennesket eller `architect` | tilstandsrapport i chatten. Skriver intet |
 | `workflow` | i menneskets tråd | mennesket | `docs/workflows/<navn>.md` |
 | `update` | i menneskets tråd | mennesket | opdateret kontrakt og opdaterede workflow-kopier |
+| `mockup` | i menneskets tråd | en konsulent, i et møde med slutbrugere | skitse og noter i `docs/mockups/` |
 
-**Der er én slags tråd.** Mennesket sidder hos `architect`; alt andet sendes af sted derfra og kommer tilbage. Der findes ikke længere et `ny tråd →`/`her →`-valg, fordi der ikke er noget at vælge imellem.
+**Der er én slags tråd.** Mennesket sidder hos `architect`; alt andet sendes af sted derfra og kommer tilbage. Der findes ikke længere et `ny tråd →`/`her →`-valg, fordi der ikke er noget at vælge imellem. `mockup` kaldes uden om navet, men dens noter ender samme sted: hos `architect`, som en rapport.
 
 ## Tre modtagere
 
@@ -42,7 +46,9 @@ Alt du skriver har én af tre modtagere, og de behandles forskelligt.
 
 ### Til mennesket: chatten
 
-**Gælder kun `architect` og `kickoff`.** De øvrige roller taler ikke med mennesket.
+**Gælder `architect` og `kickoff`.** De øvrige roller taler ikke med mennesket — med én undtagelse.
+
+**`mockup` taler med konsulenten, men spørger ikke.** Den viser en skitse, retter den til, og gætter hvor noget er uklart. Regel 2 og 4 nedenfor gælder derfor ikke for den: den stiller ingen spørgsmål med for og imod, og den gætter i stedet for at spørge. De øvrige regler gælder.
 
 Ét spørgsmål ad gangen, i almindeligt dansk, og så venter du. Filen er protokol over at spørgsmålet blev stillet — den er ikke måden at stille det.
 
@@ -141,7 +147,7 @@ Din kontekst er **filerne**, ikke samtalen. Læs i denne rækkefølge, **før** 
 
 Det gælder **også når du kaldes midt i en tråd der allerede kører.** Tråden kan have talt om noget andet i tyve minutter og huske en version af koden der ikke findes længere. **Filerne slår trådens hukommelse.** Er de uenige, er filen rigtig.
 
-Findes `AGENTS.md` ikke, er projektet ikke sat op. Sig `kør /agents:kickoff først` og stop.
+Findes `AGENTS.md` ikke, er projektet ikke sat op. Sig `kør /agents:kickoff først` og stop. Kun `mockup` arbejder videre; den har de regler den skal bruge, i sin egen rollefil.
 
 Derefter, i din **første** besked, før du arbejder: skriv i én linje hvad du arbejder på, og hvad du har forstået opgaven som.
 
@@ -151,16 +157,29 @@ Derefter, i din **første** besked, før du arbejder: skriv i én linje hvad du 
 |---|---|---|---|
 | `docs/BOARD.md` | `architect` | alle | Tilstandsrapport — hvad er åbent |
 | `docs/projekt.md` | `kickoff` | alle | Projektets formål, stak og rammer |
+| `README.md` | `architect` (første udgave: `kickoff`) | mennesker | Hvad projektet gør, og hvordan man kommer i gang. Se `## README` |
 | `docs/tasks/task-NNNN-slug.md` | `architect` (+ `developer`, se nedenfor) | `developer` | Én opgave: hvad, hvorfor, færdig når |
 | `docs/tests/test-NNNN-slug.md` | `tester` | `architect` | Hvad blev prøvet, og hvad holdt ikke |
 | `docs/securities/security-NNNN-slug.md` | `security` | `architect` | Sikkerhedsfund |
 | `docs/reviews/review-NNNN-slug.md` | `reviewer` | `architect` | Gennemgang og oprydningsfund |
 | `docs/debugs/debug-NNNN-slug.md` | `debugger` | `architect` | Årsagsanalyse af en konkret fejl |
 | `docs/map.md` | `scout` | `architect` | Kort over en eksisterende kodebase |
+| `docs/mockups/mockup-NNNN-slug/` | `mockup` | `architect` | Én skitse: `index.html` med fiktive data, og `NOTER.md` med hvad slutbrugeren reagerede på |
 | `docs/workflows/<navn>.md` | `workflow` (+ `update`) | alle | Beskrivelse af et valgt fælles workflow. `skabelon-version` i frontmatter siger hvilken udgave kopien er |
 | `docs/decisions/log.md` | `architect` | alle | Append-only beslutningslog |
 
 **Beslutningsloggen er ikke optional.** `architect`-tråden er den eneste samtale i modellen, og loggen er det eneste spor den efterlader der overlever tråden. Hver beslutning truffet i en `architect`-tråd skrives ind, med begrundelse, før tråden lukkes.
+
+## README
+
+`README.md` i roden er til mennesker: dem der skal bruge, drive eller overtage projektet. Det er den første fil de åbner, og ofte den eneste.
+
+- **Dansk, i almindeligt sprog.** Skriv til en kollega der ikke har været med. Navne fra koden — funktioner, moduler, tabeller — hører ikke hjemme her.
+- **Den siger:** hvad projektet gør, og for hvem. Hvordan man kommer i gang, kører det og opdaterer det. Hvilke indstillinger der skal sættes — nøglerne fra `.env.example`, aldrig værdierne; se `## Værdier hører i .env`. Og hvor man læser mere.
+- **Den siger ikke:** hvordan koden er bygget op, hvorfor, eller hvordan rollerne arbejder. Det står i `CLAUDE.md`, `docs/map.md` og `AGENTS.md`.
+- **Den passer med det der er bygget.** En README der beskriver noget der ikke findes længere, er værre end en kort.
+
+`kickoff` skriver den første udgave. Derefter ejer `architect` den og retter den på opgavens gren, før grenen lukkes, når opgaven har ændret hvad en bruger ser, gør eller skal sætte op. `developer` rører den ikke, men skriver nye kommandoer og indstillinger i sine noter, så `architect` har dem. `reviewer` melder den som et fund når den er bagud, ikke er på dansk, eller er skrevet til en udvikler frem for en bruger.
 
 ## Numre
 
@@ -169,6 +188,7 @@ Derefter, i din **første** besked, før du arbejder: skriv i én linje hvad du 
 - **Præfikset er obligatorisk, altid.** Skriv `task-0042`, aldrig `0042`. Et bart nummer er tvetydigt.
 - `NNNN` er næste ledige fire cifre **i den mappe**. Numre genbruges aldrig.
 - Slug'en er kort og på engelsk: `task-0042-schema-baseline.md`.
+- **En skitse er en mappe, ikke en fil:** `docs/mockups/mockup-0003-case-overview/`. Den tæller i `docs/mockups/` som de andre i deres. Laves to skitser på hver sin gren, kan to numre falde sammen; så adskilles mapperne af slug'en.
 
 ### Rapporten er kilden, opgaven er dens afkom
 
@@ -177,6 +197,8 @@ En rapport dækker ikke ét nummer — `tester` læser hele koden, `reviewer` ge
 Bindingen løber den anden vej: **en rapport afføder opgaver.** `test-0003` bliver `task-0044`, `task-0045` og `task-0046`. Hver opgave skriver i sit `Kilde`-felt hvilken rapport den kom af. Rapporten lister hvilke numre den afled.
 
 Det er den binding der gør at et fund kan spores til den kode der lukkede det — og at et fund ikke kan forsvinde ubemærket.
+
+**En skitse er en rapport.** En slutbrugers reaktion er et fund. Skitsens `NOTER.md` behandles derfor som enhver anden rapport: hver reaktion, hvert fravalg og hvert åbent punkt bliver en opgave eller afvises, og opgaven skriver `mockup-NNNN` i sit `Kilde`-felt.
 
 ## Status
 
@@ -209,6 +231,8 @@ klar til behandling → behandlet
 
 **Det er den eneste spærre mod at et fund forsvinder mellem nav og spoke.** En rapport der står `klar til behandling`, er en rapport med uafhentede fund. `status` viser dem, og `architect` lukker dem.
 
+Det samme statussæt gælder skitsernes `NOTER.md`. `mockup` skriver `klar til behandling`; `architect` sætter `behandlet`.
+
 En rapport må ikke sættes `behandlet` med punkter der ikke er afgjort. Er du usikker på et punkt, er det ikke afgjort.
 
 ## `task-NNNN` har to skrivere
@@ -234,7 +258,7 @@ Er noget uklart, er noten stedet det siges. `developer` kan ikke spørge — den
 
 **Den skrives af `architect`**, som er den eneste rolle der opretter opgaver, sætter statusser og triagerer rapporter — og derfor den eneste der kender hele tilstanden. Ingen agent opdaterer den; de skriver i deres egen fil og returnerer.
 
-**`status` skriver den ikke.** Den læser de fem mapper, holder dem op mod BOARD og rapporterer afvigelser. Er BOARD uenig med en fil, er **filen** rigtig — og `architect` retter BOARD næste gang den er i tråden.
+**`status` skriver den ikke.** Den læser opgaverne, rapporterne og skitsernes noter — også skitser der kun ligger på deres egen gren — holder dem op mod BOARD og rapporterer afvigelser. Er BOARD uenig med en fil, er **filen** rigtig — og `architect` retter BOARD næste gang den er i tråden.
 
 Fire afsnit:
 
@@ -340,6 +364,10 @@ arbejdsmaskine flagger det, og med rette — den kan ikke se at det peger på en
 udviklingsserver. Det skete på et projekt den 2026-09-08 og udløste en
 henvendelse fra IT.
 
+Grunden gælder også `mockup`, selv om den kører i menneskets tråd og ikke er en
+agent. Den starter aldrig en browser fra kommandolinjen. Mennesket åbner selv
+skitsen, eller den vises i en browser klienten selv stiller til rådighed.
+
 ## Stak og biblioteker
 
 Organisationen har præferencer. De er **standardvalg, ikke forbud** — men et fravalg begrundes i opgavens stak-tabel under *Afvist alternativ* og skrives i beslutningsloggen. Ikke kun i en tråd.
@@ -366,7 +394,7 @@ hører i `.env`, som ikke versionsstyres, og kun der.
 Det gælder de værdier der er **forretningsspecifikke eller forretningskritiske**:
 organisationens servernavne, databasenavne, skemaer, tabelnavne, tjenestebrugere,
 delte stier, interne URL'er og IP-adresser. De skrives ikke i kode, tests,
-`docs/`, `CLAUDE.md`, opgaver, rapporter eller commit-beskeder. Heller ikke som
+`docs/`, `CLAUDE.md`, `README.md`, opgaver, rapporter eller commit-beskeder. Heller ikke som
 eksempel, og heller ikke i et fund der handler om netop dem.
 
 **Generiske og ligegyldige værdier er ikke omfattet.** `localhost`, et
@@ -410,14 +438,17 @@ Kun det personlige, det hemmelige og det genskabelige holdes ude: `.claude/setti
 Det forudsætter at repoet er privat. **Et repo der indeholder `docs/securities/` må ikke gøres offentligt uden gennemgang** — fund kan beskrive sårbarheder der ikke er udbedret, og historik kan ikke gøres privat med tilbagevirkende kraft. Samme forsigtighed gælder `docs/reviews/` og `docs/debugs/`.
 
 - **`.gitignore` findes før projektets anden fil.** En hemmelighed der er blevet committet, kan ikke slettes igen; den skal roteres. Derfor er rækkefølgen ikke til forhandling.
+  Det ene tilfælde hvor noget ligger før `.gitignore`, er en skitse i en tom mappe: `mockup` opretter `docs/mockups/` uden at lægge noget andet ind. Det modsiger ikke reglen. Der er ingen git, så intet kan committes, og skitsen rummer ingen hemmeligheder. `.gitignore` er stadig på plads før den første commit, når projektet sættes op.
 - **`.gitattributes` med `* text=auto eol=lf`.** Vi udvikler på Windows og kører i Linux-containere.
 - **Én gren pr. opgave:** `task-0042-schema-baseline`. Aldrig arbejde direkte på default-branch.
   **Den rolle der først skriver en fil på opgaven, opretter grenen.** Findes den allerede, skifter du til den. Står du på default-branch og skal til at skrive, er det grenen der mangler; opret den, og sig det i din første besked.
+  **En skitse har sin egen gren:** `mockup-0003-case-overview`, lavet ud fra default-branch og ikke fra den gren der er tjekket ud. Står der ucommittede ændringer, skifter `mockup` ikke gren; den siger det og stopper. Den committer kun sin egen skitsemappe, med den eksplicitte sti.
 - **Én commit pr. afsluttet enhed.** Ikke én stor commit til sidst.
 - **Commit-beskeder på dansk, imperativ, med opgavenummeret foran:** `task-0042: skriv skemaet ned i sql/schema.sql`. Er der ikke nogen opgave, brug rollens navn: `reviewer: fjern ubrugte imports`.
 - **Du pusher ikke.** Push og merge er menneskets skridt, som udrulning er det. Commit'en er checkpointet; pushet er en beslutning om at give arbejdet fra sig.
   `status` rapporterer hvor mange commits der ikke er pushet, så afstanden er synlig uden at være din opgave.
-  **Én undtagelse:** `architect` må køre merge og push, når den har vist de præcise linjer og fået et ja på netop dem, for en navngiven gren. Ja'et er opbrugt når blokken er kørt — næste gren kræver et nyt spørgsmål, og der findes ikke et ja der gælder fremover. Alle andre roller pusher aldrig.
+  **To undtagelser.** `architect` må køre merge og push, når den har vist de præcise linjer og fået et ja på netop dem, for en navngiven gren. Ja'et er opbrugt når blokken er kørt — næste gren kræver et nyt spørgsmål, og der findes ikke et ja der gælder fremover.
+  `mockup` må pushe sin egen skitsegren, når den har vist linjen og fået et ja på netop den. Den pusher aldrig andre grene og merger ikke. Alle andre roller pusher aldrig.
 - **Du ændrer aldrig et versionsnummer uopfordret.** Ikke i en pakkefil, ikke i et manifest, og du opretter eller flytter ikke et tag af dig selv. En udgivelse er menneskets beslutning. `architect` **foreslår** den ved trin 8 og kører den efter et ja; alle andre roller lader nummeret være. Se `## Udgivelser og versionsnumre`.
 - Ingen force-push af grene. Ingen omskrivning af historik der er pushet.
 - **Undtagelse, og kun når mennesket beder om det:** flytbare major-tags (`v1`, `v2`) på delte workflow-repoer flyttes med `git tag -f` og `git push -f origin v1`. Immutable tags (`v1.0.3`) flyttes aldrig.
