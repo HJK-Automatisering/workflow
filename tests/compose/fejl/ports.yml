@@ -3,6 +3,7 @@ services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     ports:
       - "8080:8080"
     mem_limit: 512m

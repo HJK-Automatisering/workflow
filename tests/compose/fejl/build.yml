@@ -5,6 +5,7 @@ services:
     build: .
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    network_mode: bridge
     environment:
       - DB_SERVER=${DB_SERVER}
     mem_limit: 512m

@@ -1,0 +1,21 @@
+# Bryder kun reglen `unoedigt-netvaerk`: én service paa stackens eget
+# `default`-netvaerk. Servicen staar allerede paa proxy-netvaerket, saa
+# `default` forbinder ingenting og bruger et adresseomraade paa vaerten.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    networks:
+      default:
+      nginx-proxy-manager_default:
+        aliases:
+          - example-app
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nginx-proxy-manager_default:
+    external: true

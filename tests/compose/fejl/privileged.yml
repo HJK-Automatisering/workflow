@@ -4,6 +4,7 @@ services:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     privileged: true
     restart: unless-stopped
+    network_mode: bridge
     mem_limit: 512m
     logging:
       options:
