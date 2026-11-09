@@ -596,7 +596,8 @@ forkerte argumenter.
 | `container-name` | `container_name` findes. Navnet kolliderer på tværs af stacks |
 | `eksternt-netvaerk` | et netværk med `external: true` er ikke `nginx-proxy-manager_default` |
 | `alias` | en service på `nginx-proxy-manager_default` mangler et netværksalias. Ingen krav til aliasets form |
-| `unoedigt-netvaerk` | et netværk stacken selv opretter, har kun én service på sig. Det gælder også `default`, som en service står på, når den ikke har `networks:` eller `network_mode`. Hvert netværk optager et adresseområde på værten, og der er kun plads til omkring 31. Står servicen på andre netværk, fjernes det overflødige; står den kun på det ene, sættes `network_mode: bridge` |
+| `unoedigt-netvaerk` | et netværk stacken selv opretter, har kun én service på sig. Det gælder også `default`, når en service har skrevet det under `networks:`. Hvert netværk optager et adresseområde på værten, og der er kun plads til omkring 31. Står servicen på andre netværk, fjernes det overflødige; står den kun på det ene, sættes `network_mode: bridge` |
+| `implicit-netvaerk` | en service har hverken `networks:` eller `network_mode`. Så sætter compose den på stackens `default`, og stacken opretter et netværk, som ingen har valgt. Vælg det: `network_mode: bridge` for en service, der kun taler ud, ellers de netværk den skal tale med andre services på — også `default`, skrevet ud |
 
 `environment:` tjekkes i både mapping-form (`NØGLE: ${NØGLE}`) og listeform
 (`- NØGLE=${NØGLE}`). Én nøgle giver én fejl; `hemmelighed` vinder over
@@ -673,6 +674,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql/data
+    # Skrevet ud, fordi `web` taler med databasen her. Uden linjen fejler
+    # `implicit-netvaerk`: et netværk skal vælges, ikke bare ske.
+    networks:
+      - default
     mem_limit: 1g
     logging:
       options:

@@ -1,0 +1,22 @@
+# Bryder kun reglen `implicit-netvaerk`: to services uden `networks:` og
+# `network_mode`. Compose saetter dem begge paa stackens `default` og opretter
+# et netvaerk som ingen har valgt. De er to, saa `unoedigt-netvaerk` tier -
+# men en worker og en scheduler der kun taler ud, har ikke brug for det.
+services:
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  scheduler:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    restart: unless-stopped
+    mem_limit: 128m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

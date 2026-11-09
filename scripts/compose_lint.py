@@ -21,7 +21,9 @@ Raekkefoelge:
        maskine der koerer, og ingen stack.env behoeves. Findes docker compose
        ikke (typisk lokalt), springes trinnet over med en advarsel; den fulde
        kontrol sker i GitHub Actions.
-    3. Reglerne, pr. service - og for netvaerk paa topniveau.
+    3. Reglerne, pr. service - og for netvaerk paa topniveau. En service
+       skal selv vaelge sit netvaerk (`implicit-netvaerk`), saa stacken aldrig
+       opretter et `default`-netvaerk som ingen har bedt om.
     4. Undtagelser i topniveau-feltet `x-undtagelser`.
 
 Hver fejl og advarsel skrives paa stderr i det format GitHub Actions viser
@@ -82,6 +84,7 @@ REGLER = (
     'build', 'latest', 'privileged', 'docker-sock', 'bind-mount', 'host-adgang',
     'hemmelighed', 'env-vaerdi', 'env-fil', 'restart', 'mem-limit', 'logging',
     'ports', 'container-name', 'eksternt-netvaerk', 'alias', 'unoedigt-netvaerk',
+    'implicit-netvaerk',
 )
 
 PROXY_NETVAERK = 'nginx-proxy-manager_default'
@@ -330,6 +333,20 @@ def lint_service(navn: str, svc, svc_line: int | None) -> list[Fund]:
                                'det; Docker navngiver containeren efter stack og service.',
              key_line(svc, 'container_name'))
 
+    # implicit-netvaerk. Uden `networks:` og `network_mode` saetter compose
+    # servicen paa stackens `default`, og saa opretter stacken et netvaerk som
+    # ingen har valgt. Hvert netvaerk optager et af vaertens omkring 31
+    # adresseomraader, og to services paa `default` er ikke bevis for at de
+    # taler sammen - en worker og en scheduler der kun taler ud, goer ikke.
+    # Et tomt `networks:` taeller som intet valg.
+    if 'network_mode' not in svc and not svc.get('networks'):
+        fejl('implicit-netvaerk',
+             'har hverken `networks:` eller `network_mode`, saa den lander paa stackens '
+             '`default`-netvaerk uden at nogen har valgt det. Vaelg netvaerket: '
+             '`network_mode: bridge` hvis servicen kun taler ud, ellers skriv de netvaerk den '
+             'skal tale med andre services paa under `networks:`.',
+             key_line(svc, 'networks'))
+
     # alias
     nets = svc.get('networks')
     if isinstance(nets, list):
@@ -374,8 +391,10 @@ def lint_netvaerk_brug(services: dict, doc) -> list[Fund]:
     paa forbinder ingenting - det er bare et omraade der er brugt op. Compose
     opretter `default` saa snart én service staar paa det, og det goer den
     ogsaa uden at det er skrevet: en service uden `networks:` og uden
-    `network_mode` staar paa `default`. Eksterne netvaerk oprettes ikke af
-    stacken og taelles ikke.
+    `network_mode` staar paa `default`. Den taelles med, saa den holder
+    `default` i live for andre services, men staar den alene, er fejlen
+    `implicit-netvaerk`s og ikke denne regels. Eksterne netvaerk oprettes
+    ikke af stacken og taelles ikke.
     """
     top = doc.get('networks') if isinstance(doc.get('networks'), dict) else {}
 
@@ -386,14 +405,15 @@ def lint_netvaerk_brug(services: dict, doc) -> list[Fund]:
         external = spec.get('external')
         return er_sand(external) or isinstance(external, dict)
 
-    # netvaerk -> [(service, linje, servicens andre netvaerk)]
-    brug: dict[str, list[tuple[str, int | None, list[str]]]] = {}
+    # netvaerk -> [(service, linje, servicens andre netvaerk, implicit)]
+    brug: dict[str, list[tuple[str, int | None, list[str], bool]]] = {}
     for navn, svc in services.items():
         if not isinstance(svc, dict) or 'network_mode' in svc:
             continue
         svc_line = key_line(services, navn)
         nets = svc.get('networks')
-        if nets is None:
+        implicit = not nets
+        if implicit:
             paa = [('default', svc_line)]
         elif isinstance(nets, list):
             paa = [(str(n), item_line(nets, i, svc_line)) for i, n in enumerate(nets)]
@@ -403,13 +423,17 @@ def lint_netvaerk_brug(services: dict, doc) -> list[Fund]:
             continue
         for net, line in paa:
             andre = [n for n, _ in paa if n != net]
-            brug.setdefault(net, []).append((str(navn), line, andre))
+            brug.setdefault(net, []).append((str(navn), line, andre, implicit))
 
     fund: list[Fund] = []
     for net, medlemmer in brug.items():
         if len(medlemmer) != 1 or eksternt(net):
             continue
-        service, line, andre = medlemmer[0]
+        service, line, andre, implicit = medlemmer[0]
+        # Staar servicen paa `default` uden at have valgt det, har
+        # `implicit-netvaerk` allerede sagt det. Én fejl pr. aarsag.
+        if implicit:
+            continue
         if andre:
             raad = (f'Fjern `{net}` fra servicen; den staar allerede paa '
                     f'{", ".join(f"`{n}`" for n in andre)}.')
