@@ -1,5 +1,5 @@
 ---
-kontrakt-version: 22
+kontrakt-version: 26
 ---
 
 # AGENTS.md — fælles kontrakt
@@ -35,7 +35,7 @@ Ved konflikt: rollefilen bestemmer *hvad* der skal laves, denne fil bestemmer *h
 | `scout` | agent | `architect` | `docs/map.md` |
 | `status` | agent | mennesket eller `architect` | tilstandsrapport i chatten. Skriver intet |
 | `workflow` | i menneskets tråd | mennesket | `docs/workflows/<navn>.md` |
-| `update` | i menneskets tråd | mennesket | opdateret kontrakt og opdaterede workflow-kopier |
+| `update` | i menneskets tråd | mennesket | opdateret kontrakt, opdaterede workflow-kopier og opdateret designstandard i `docs/design/` |
 | `mockup` | i menneskets tråd | en konsulent, i et møde med slutbrugere | skitse og noter i `docs/mockups/` |
 
 **Der er én slags tråd.** Mennesket sidder hos `architect`; alt andet sendes af sted derfra og kommer tilbage. Der findes ikke længere et `ny tråd →`/`her →`-valg, fordi der ikke er noget at vælge imellem. `mockup` kaldes uden om navet, men dens noter ender samme sted: hos `architect`, som en rapport.
@@ -166,6 +166,7 @@ Derefter, i din **første** besked, før du arbejder: skriv i én linje hvad du 
 | `docs/map.md` | `scout` | `architect` | Kort over en eksisterende kodebase |
 | `docs/mockups/mockup-NNNN-slug/` | `mockup` | `architect` | Én skitse: `index.html` med fiktive data, og `NOTER.md` med hvad slutbrugeren reagerede på |
 | `docs/workflows/<navn>.md` | `workflow` (+ `update`) | alle | Beskrivelse af et valgt fælles workflow. `skabelon-version` i frontmatter siger hvilken udgave kopien er |
+| `docs/design/` | `design` (+ `update`) | alle | Den fælles designstandard: `design.md`, `design.css` og `eksempel.html`. Rettes aldrig i projektet. `design-version` i frontmatter i `design.md` siger hvilken udgave kopien er |
 | `docs/decisions/log.md` | `architect` | alle | Append-only beslutningslog |
 
 **Beslutningsloggen er ikke optional.** `architect`-tråden er den eneste samtale i modellen, og loggen er det eneste spor den efterlader der overlever tråden. Hver beslutning truffet i en `architect`-tråd skrives ind, med begrundelse, før tråden lukkes.
@@ -368,6 +369,90 @@ Grunden gælder også `mockup`, selv om den kører i menneskets tråd og ikke er
 agent. Den starter aldrig en browser fra kommandolinjen. Mennesket åbner selv
 skitsen, eller den vises i en browser klienten selv stiller til rådighed.
 
+## Webflader og designstandarden
+
+Gælder hvert projekt med en webflade.
+
+**Et nyt projekt med en webflade bruger den fælles designstandard fra start.**
+Den lægges ind med `/agents:design` og ligger i `docs/design/`. Reglerne for
+udseendet står i `docs/design/design.md`, og kopien rettes aldrig i projektet.
+
+**Et projekt er nyt indtil sin første udgivelse** — så længe der hverken findes
+et versionsnummer eller et versionstag. Derefter er det i drift. Se
+`## Udgivelser og versionsnumre`.
+
+**En løsning i drift får standarden kun gennem en opgave mennesket har sagt ja
+til.** Ingen rolle bygger udseendet om i forbifarten.
+
+**Bundlinjen gælder hver webløsning**, med eller uden standarden. Reglen står
+herunder, i `### Bundlinjen er fast`, så den kan læses i et projekt der ikke
+har `docs/design/`.
+
+**En ny udgave af appens filer virker uden Ctrl+F5, i hver webløsning**, med
+eller uden standarden. Reglen står herunder, i `### En ny udgave uden Ctrl+F5`.
+
+**Hvem gør hvad:**
+
+- `architect` holder et projekt med en webflade op mod dette afsnit i sit første
+  trin. Er projektet nyt og mangler `docs/design/`, bliver det et emne at lægge
+  standarden ind. Er det i drift uden standarden, bliver det et emne der
+  foreslår den, og mennesket afgør. Mangler bundlinjen, bliver det et emne. Det
+  gør det også, når en app i drift leverer sine filer uden om reglen om en ny
+  udgave. En opgave om bundlinjen har reglen i `Færdig når`. En opgave der
+  sætter en webflade op eller ændrer hvordan den leverer sine filer, har reglen
+  om en ny udgave i `Færdig når`.
+- `developer` bygger webfladen med standardens variabler og klasser, når
+  projektet har den, og skriver projektets egne regler i appens eget
+  stylesheet — aldrig i `docs/design/`. Den leverer filerne efter reglen om en
+  ny udgave. Bundlinjen og leveringen af filerne efterprøves med HTTP-kald
+  efter `## Efterprøvning af en webflade`.
+- `reviewer` melder det som fund når en webflade går uden om standarden, når
+  kopien i `docs/design/` er rettet, når bundlinjen mangler eller afviger fra
+  reglen, og når en fil har lang levetid på en adresse der ikke skifter med
+  indholdet.
+- `mockup` giver skitsen standardens udseende og viser bundlinjen med opdigtede
+  værdier. Skitsen er stadig én fil der virker uden netværk.
+
+### Bundlinjen er fast
+
+**Hver webløsning viser bundlinjen centreret, nederst på hver side.** Den siger hvem der har lavet løsningen, hvem man kontakter ved udfordringer, og hvilken version der kører. Teksten er præcis denne, i alle løsninger:
+
+> Udviklet af TEAMNAVN. Ved udfordringer kontakt EMAIL. Version X.Y.Z
+
+Skriv den ikke om, og tilføj intet. Markup står under `### Bundlinje` i `docs/design/design.md`, når projektet har standarden.
+
+| I teksten | Nøgle | Hvor værdien kommer fra |
+|---|---|---|
+| `TEAMNAVN` | `TEAM_NAME` | Påkrævet indstilling på stakken |
+| `EMAIL` | `CONTACT_EMAIL` | Påkrævet indstilling på stakken |
+| `X.Y.Z` | `APP_VERSION` | Bygget ind i imaget af `docker-publish` |
+
+- **`TEAM_NAME` og `CONTACT_EMAIL` er påkrævede.** De står i `.env.example` uden værdi og i compose-filen som `${TEAM_NAME}` og `${CONTACT_EMAIL}`. Værdierne sættes kun på stakken — aldrig i koden, i compose-filen eller i repoet.
+- **Appen nægter at starte** når en af de to mangler eller er tom. Loggen siger hvilken nøgle der mangler — aldrig en værdi.
+- **Versionen er `APP_VERSION`**, som `docker-publish` bygger ind i imaget. Den skrives aldrig fast i koden. Er den tom, fx ved lokal kørsel, udelades *. Version X.Y.Z*, og teksten slutter efter adressen: *Udviklet af TEAMNAVN. Ved udfordringer kontakt EMAIL*.
+- **Værdierne læses på serveren.** Hvordan de når siden, afhænger af stakken. De bages aldrig ind i en statisk fil ved build.
+- **Værdierne sættes ind som tekst, aldrig som HTML.** Brug stakkens almindelige escaping — både i teksten og i linkets `href`. Ingen af de tre værdier må kunne blive til markup.
+- **Adressen er et `mailto:`-link**, der åbner en ny mail med emnet *Angående <appens navn>*. Emnet procentkodes, fx `?subject=Ang%C3%A5ende%20Eksempelappen`. Appens navn er tekst i koden, ikke en indstilling.
+
+### En ny udgave uden Ctrl+F5
+
+**Hver webløsning leverer sine filer, så en ny udgave bruges ved næste almindelige sidevisning.** Ingen skal trykke Ctrl+F5. Det gælder hver fil appen selv leverer — stylesheets og scripts, også kopien af `design.css` — med eller uden standarden.
+
+Der er to måder, og ikke andre:
+
+1. **Adressen skifter med indholdet.** Filens navn eller adresse bærer et fingeraftryk af indholdet, typisk en hash som stakken sætter ved build. Så må filen gemmes længe, fordi en ny udgave får en ny adresse. Et versionsnummer på adressen er ikke et fingeraftryk: det skifter ikke når en fil ændres uden en ny udgivelse.
+2. **Browseren spørger hver gang.** Svaret har `Cache-Control: no-cache` og enten `ETag` eller `Last-Modified`. Så spørger browseren serveren før hver brug, og får `304` uden indhold når filen er den samme.
+
+- **Det må aldrig ske:** en lang levetid — `max-age` over nul eller `immutable` — på en adresse der ikke skifter med indholdet. Så bruger browseren den gamle fil uden at spørge.
+- **Selve siderne svarer med `Cache-Control: no-cache`.** Ellers kan en gemt side pege på en gammel adresse, og så hjælper fingeraftrykket ikke.
+- **Proxyen gemmer ikke filerne.** I Nginx Proxy Manager står *Cache Assets* på *Fra*, som `NGINX-PROXY-MANAGER.md` i plugin-repoet siger.
+
+**Efterprøvning** sker med HTTP-kald mod appens egen server, efter `## Efterprøvning af en webflade`:
+
+- Svaret på en side viser `Cache-Control: no-cache`.
+- Svaret på et stylesheet viser sin `Cache-Control`. Ved den første måde peger siden på stylesheetet med fingeraftrykket i adressen. Ved den anden måde har svaret `no-cache` og en `ETag` eller `Last-Modified`.
+- Ved den anden måde giver et nyt kald med `If-None-Match` eller `If-Modified-Since`, sat til den værdi det første svar gav, `304` uden indhold.
+
 ## Stak og biblioteker
 
 Organisationen har præferencer. De er **standardvalg, ikke forbud** — men et fravalg begrundes i opgavens stak-tabel under *Afvist alternativ* og skrives i beslutningsloggen. Ikke kun i en tråd.
@@ -428,6 +513,59 @@ ORM — er det et spørgsmål til mennesket, ikke et valg rollen tager.
 ikke i tavshed, og omskriv ikke kode der virker for at flytte en værdi. Værdierne
 står også i historikken, og den kan ikke gøres privat bagefter — samme forbehold
 som for `docs/securities/`.
+
+## En app bag Authentik
+
+Gælder en app der ikke har sit eget login, men står bag Authentik som *forward
+auth* i Nginx Proxy Manager. Proxyen spørger Authentik før hver forespørgsel og
+sender kun videre ved et ja. Kendetegnet er at koden læser
+`X-authentik-*`-headerne, eller at projektets dokumenter siger at appen står
+bag Authentik.
+
+**Proxyens netværk er delt.** Alle stakke bag proxyen står på det, og enhver
+container på det kan kalde appen direkte: uden om proxyen, uden om Authentik,
+og med de `X-authentik-*`-headere den selv vil. Derfor sender proxyen en delt
+nøgle med hvert kald i headeren `X-Proxy-Secret`, og appen svarer kun på kald
+der bærer den.
+
+Appen skal:
+
+1. **Afvise ethvert kald uden den rigtige nøgle.** Det gælder alle stier, også
+   statiske filer. Afvisningen er `401` eller `403` uden indhold.
+2. **Sammenligne nøglen i konstant tid**, med sprogets egen funktion til det.
+3. **Nægte at starte når nøglen ikke er sat eller er tom.** Loggen siger hvilken
+   nøgle der mangler, aldrig en værdi. Der er ingen standardværdi.
+4. **Aldrig skrive nøglen** i loggen, i en fejlbesked eller i et svar. Det
+   gælder også det der blev sendt ved en afvisning.
+5. **Først læse `X-authentik-*`-headerne når nøglen er tjekket.** Før det kan de
+   indeholde hvad som helst.
+6. **Forbyde at siderne vises i en ramme.** Hvert svar, også afvisningerne,
+   bærer `Content-Security-Policy: frame-ancestors 'none'` og
+   `X-Frame-Options: DENY`.
+7. **Give hver formular der ændrer noget, et token** der er bundet til brugeren.
+   Så kan en side et andet sted ikke sende formularen i brugerens navn.
+
+Projektet vælger selv hvad nøglen hedder på stakken. Navnet står i
+`.env.example` uden værdi og i compose-filen som `${NØGLE}`. Værdien står kun
+på stakken og i proxy-værten. Se `## Værdier hører i .env`.
+
+**Hvem gør hvad:**
+
+- `architect` skriver de syv punkter ind i `Færdig når` i den opgave der sætter
+  appen bag Authentik. Er det uklart om appen står bag Authentik, spørger den.
+- `developer` bygger dem og efterprøver dem med HTTP-kald efter
+  `## Efterprøvning af en webflade`: uden nøgle, med forkert nøgle, med rigtig
+  nøgle, og med et forfalsket brugernavn uden nøgle.
+- `security` holder appen op mod listen før en udrulning. Hvert punkt der ikke
+  holder, er et fund. Stoler appen på `X-authentik-*` uden at tjekke nøglen, er
+  fundet `kritisk`.
+
+**Står der en app i drift der ikke opfylder det:** sig det, og lad det blive en
+opgave. Ret det ikke i tavshed.
+
+Klikkene i Authentik og proxyen står i `AUTHENTIK.md` og
+`NGINX-PROXY-MANAGER.md` i plugin-repoet. Dem udfører et menneske, ikke
+rollerne.
 
 ## Versionering
 
