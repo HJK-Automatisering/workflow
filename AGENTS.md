@@ -1,5 +1,5 @@
 ---
-kontrakt-version: 27
+kontrakt-version: 28
 ---
 
 # AGENTS.md — fælles kontrakt
@@ -371,51 +371,39 @@ skitsen, eller den vises i en browser klienten selv stiller til rådighed.
 
 ## Webflader og designstandarden
 
-Gælder hvert projekt med en webflade.
+Gælder kun projekter der har `docs/design/`.
 
-**Et nyt projekt med en webflade bruger den fælles designstandard fra start.**
-Den lægges ind med `/agents:design` og ligger i `docs/design/`. Reglerne for
-udseendet står i `docs/design/design.md`, og kopien rettes aldrig i projektet.
-
-**Et projekt er nyt indtil sin første udgivelse** — så længe der hverken findes
-et versionsnummer eller et versionstag. Derefter er det i drift. Se
-`## Udgivelser og versionsnumre`.
+**Designstandarden er et tilbud, ikke et krav.** Den lægges ind med
+`/agents:design`, når mennesket vælger den, og ligger så i `docs/design/`.
+Reglerne for udseendet står i `docs/design/design.md`, og kopien rettes aldrig
+i projektet. Ingen rolle kræver standarden i et projekt der ikke har den.
 
 **En løsning i drift får standarden kun gennem en opgave mennesket har sagt ja
 til.** Ingen rolle bygger udseendet om i forbifarten.
 
-**Bundlinjen gælder hver webløsning**, med eller uden standarden. Reglen står
-herunder, i `### Bundlinjen er fast`, så den kan læses i et projekt der ikke
-har `docs/design/`.
-
-**En ny udgave af appens filer virker uden Ctrl+F5, i hver webløsning**, med
-eller uden standarden. Reglen står herunder, i `### En ny udgave uden Ctrl+F5`.
+**Bundlinjen følger standarden.** Reglen står herunder, i
+`### Bundlinjen er fast`, og gælder kun projekter med `docs/design/`.
 
 **Hvem gør hvad:**
 
-- `architect` holder et projekt med en webflade op mod dette afsnit i sit første
-  trin. Er projektet nyt og mangler `docs/design/`, bliver det et emne at lægge
-  standarden ind. Er det i drift uden standarden, bliver det et emne der
-  foreslår den, og mennesket afgør. Mangler bundlinjen, bliver det et emne. Det
-  gør det også, når en app i drift leverer sine filer uden om reglen om en ny
-  udgave. En opgave om bundlinjen har reglen i `Færdig når`. En opgave der
-  sætter en webflade op eller ændrer hvordan den leverer sine filer, har reglen
-  om en ny udgave i `Færdig når`.
-- `developer` bygger webfladen med standardens variabler og klasser, når
-  projektet har den, og skriver projektets egne regler i appens eget
-  stylesheet — aldrig i `docs/design/`. Den leverer filerne efter reglen om en
-  ny udgave. Bundlinjen og leveringen af filerne efterprøves med HTTP-kald
-  efter `## Efterprøvning af en webflade`.
-- `reviewer` melder det som fund når en webflade går uden om standarden, når
-  kopien i `docs/design/` er rettet, når bundlinjen mangler eller afviger fra
-  reglen, og når en fil har lang levetid på en adresse der ikke skifter med
-  indholdet.
+- `architect` holder et projekt med `docs/design/` op mod dette afsnit i sit
+  første trin. Bruger webfladen ikke standarden, eller mangler bundlinjen,
+  bliver det et emne. En opgave om bundlinjen har reglen i `Færdig når`. I et
+  projekt uden `docs/design/` laver `architect` ingen emner om standarden eller
+  bundlinjen. Har projektet en webflade, nævner den én gang i chatten at
+  standarden findes, som en mulighed — og ikke igen efter et nej.
+- `developer` bygger webfladen med standardens variabler og klasser og skriver
+  projektets egne regler i appens eget stylesheet — aldrig i `docs/design/`.
+  Bundlinjen efterprøves med HTTP-kald efter `## Efterprøvning af en webflade`.
+- `reviewer` melder det som fund, i et projekt med `docs/design/`, når en
+  webflade går uden om standarden, når kopien er rettet, og når bundlinjen
+  mangler eller afviger fra reglen.
 - `mockup` giver skitsen standardens udseende og viser bundlinjen med opdigtede
   værdier. Skitsen er stadig én fil der virker uden netværk.
 
 ### Bundlinjen er fast
 
-**Hver webløsning viser bundlinjen centreret, nederst på hver side.** Den siger hvem der har lavet løsningen, hvem man kontakter ved udfordringer, og hvilken version der kører. Teksten er præcis denne, i alle løsninger:
+**Hver webløsning med standarden viser bundlinjen centreret, nederst på hver side.** Den siger hvem der har lavet løsningen, hvem man kontakter ved udfordringer, og hvilken version der kører. Teksten er præcis denne, i alle løsninger:
 
 > Udviklet af TEAMNAVN. Ved udfordringer kontakt EMAIL. Version X.Y.Z
 
@@ -433,6 +421,23 @@ Skriv den ikke om, og tilføj intet. Markup står under `### Bundlinje` i `docs/
 - **Værdierne læses på serveren.** Hvordan de når siden, afhænger af stakken. De bages aldrig ind i en statisk fil ved build.
 - **Værdierne sættes ind som tekst, aldrig som HTML.** Brug stakkens almindelige escaping — både i teksten og i linkets `href`. Ingen af de tre værdier må kunne blive til markup.
 - **Adressen er et `mailto:`-link**, der åbner en ny mail med emnet *Angående <appens navn>*. Emnet procentkodes, fx `?subject=Ang%C3%A5ende%20Eksempelappen`. Appens navn er tekst i koden, ikke en indstilling.
+
+## En webflades filer
+
+Gælder hvert projekt med en webflade, med eller uden designstandarden.
+
+**En ny udgave af appens filer virker uden Ctrl+F5, i hver webløsning**, med
+eller uden standarden. Reglen står herunder, i `### En ny udgave uden Ctrl+F5`.
+
+**Hvem gør hvad:**
+
+- `architect` gør det til et emne, når en app i drift leverer sine filer uden
+  om reglen om en ny udgave. En opgave der sætter en webflade op eller ændrer
+  hvordan den leverer sine filer, har reglen om en ny udgave i `Færdig når`.
+- `developer` leverer filerne efter reglen om en ny udgave og efterprøver
+  leveringen med HTTP-kald efter `## Efterprøvning af en webflade`.
+- `reviewer` melder det som fund, når en fil har lang levetid på en adresse der
+  ikke skifter med indholdet.
 
 ### En ny udgave uden Ctrl+F5
 
