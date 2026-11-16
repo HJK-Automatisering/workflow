@@ -1,5 +1,5 @@
 ---
-kontrakt-version: 26
+kontrakt-version: 27
 ---
 
 # AGENTS.md — fælles kontrakt
@@ -528,7 +528,7 @@ og med de `X-authentik-*`-headere den selv vil. Derfor sender proxyen en delt
 nøgle med hvert kald i headeren `X-Proxy-Secret`, og appen svarer kun på kald
 der bærer den.
 
-Appen skal:
+Appen og dens proxy-vært skal:
 
 1. **Afvise ethvert kald uden den rigtige nøgle.** Det gælder alle stier, også
    statiske filer. Afvisningen er `401` eller `403` uden indhold.
@@ -544,6 +544,15 @@ Appen skal:
    `X-Frame-Options: DENY`.
 7. **Give hver formular der ændrer noget, et token** der er bundet til brugeren.
    Så kan en side et andet sted ikke sende formularen i brugerens navn.
+8. **Slå proxy-værtens adgangslog fra, når adressen kan bære persondata** — et
+   navn i en søgning, et nummer på en sag. `access_log off;` står i alle tre
+   `location`-blokke: `location /`, `location /outpost.goauthentik.io` og
+   `location @goauthentik_proxy_signin`. Adressen når loggen alle tre steder.
+   Fejlloggen skrives stadig.
+
+**Punkt 1–7 er appens, punkt 8 er proxy-værtens.** Punkt 8 er ikke kode og står
+ikke i repoet. Et menneske sætter det i proxy-værten. Blokken og tjekket står i
+`NGINX-PROXY-MANAGER.md` i plugin-repoet.
 
 Projektet vælger selv hvad nøglen hedder på stakken. Navnet står i
 `.env.example` uden værdi og i compose-filen som `${NØGLE}`. Værdien står kun
@@ -551,14 +560,24 @@ på stakken og i proxy-værten. Se `## Værdier hører i .env`.
 
 **Hvem gør hvad:**
 
-- `architect` skriver de syv punkter ind i `Færdig når` i den opgave der sætter
+- `architect` skriver de otte punkter ind i `Færdig når` i den opgave der sætter
   appen bag Authentik. Er det uklart om appen står bag Authentik, spørger den.
-- `developer` bygger dem og efterprøver dem med HTTP-kald efter
+  Er det uklart om adressen kan bære persondata, spørger den også. Punkt 8 står
+  i `Færdig når` som menneskets trin. `architect` sætter det som holdt, når
+  mennesket har kørt tjekket af adgangsloggen i `NGINX-PROXY-MANAGER.md`, og
+  tallet stod stille. Indtil da er opgaven ikke `afsluttet`.
+- `developer` bygger punkt 1–7 og efterprøver dem med HTTP-kald efter
   `## Efterprøvning af en webflade`: uden nøgle, med forkert nøgle, med rigtig
-  nøgle, og med et forfalsket brugernavn uden nøgle.
-- `security` holder appen op mod listen før en udrulning. Hvert punkt der ikke
-  holder, er et fund. Stoler appen på `X-authentik-*` uden at tjekke nøglen, er
-  fundet `kritisk`.
+  nøgle, og med et forfalsket brugernavn uden nøgle. Punkt 8 er ikke kode og
+  ikke `developer`s at bygge. Mennesket sætter det i proxy-værten efter
+  `NGINX-PROXY-MANAGER.md`. `developer` skriver punkt 8 under *Hvad er ikke
+  lavet, og hvorfor* som menneskets trin, ikke som noget der mangler.
+- `security` holder appen op mod punkt 1–7 og proxy-værten op mod punkt 8 før
+  en udrulning. Hvert punkt der ikke holder, er et fund. Stoler appen på
+  `X-authentik-*` uden at tjekke nøglen, er fundet `kritisk`. Proxy-værtens
+  konfiguration ligger ikke i repoet. Kan `security` ikke se den, skriver den
+  punkt 8 som ikke efterprøvet og peger på tjekket i `NGINX-PROXY-MANAGER.md`.
+  Det er ikke et fund i sig selv.
 
 **Står der en app i drift der ikke opfylder det:** sig det, og lad det blive en
 opgave. Ret det ikke i tavshed.
