@@ -1,0 +1,14 @@
+# Bryder kun reglen `kontakt`: ingen service har labelen hjk.kontakt, saa
+# stacken har ingen kontaktperson. Den anden label taeller ikke.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    labels:
+      com.example.rolle: web
+    restart: unless-stopped
+    network_mode: bridge
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

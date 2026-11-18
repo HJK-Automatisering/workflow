@@ -1,8 +1,9 @@
 # De tilladte varianter, som referencen ikke viser: environment i mapping-form
 # med et andet variabelnavn end noeglen, hukommelsesgraense via deploy,
 # `restart: always`, et navngivet volume i lang form, et anonymt volume, et
-# tag med ciffer og bogstaver, og network_mode der ikke er host. Bryder
-# ingen regler.
+# tag med ciffer og bogstaver, network_mode der ikke er host, og
+# kontaktpersonen i listeform paa en anden service end den foerste, ved
+# siden af en anden label med fast vaerdi. Bryder ingen regler.
 services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
@@ -30,6 +31,9 @@ services:
   cache:
     image: redis:7.4-alpine
     restart: unless-stopped
+    labels:
+      - hjk.kontakt=${CONTACT_EMAIL}
+      - com.example.rolle=cache
     volumes:
       - type: volume
         source: cache-data
