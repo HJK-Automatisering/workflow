@@ -212,9 +212,49 @@ bygges der uden push, og `digest` er tom.
 | `sign` | `true` | Signér imaget med cosign. Slå kun fra, hvis registryet ikke understøtter det. Et usigneret image kan ikke udrulles af `deploy-update.yaml` |
 | `extra_build_args` | `''` | Ekstra build-args, én pr. linje. **Build-args ender som ENV i det færdige image og kan læses af alle, der kan pulle det. Aldrig hemmeligheder her** |
 | `protect_release_tags` | `false` | Nægter at bygge, hvis versionstagget allerede findes i registryet; en ny bygning kræver et nyt versionsnummer. Gælder kun release-tags `vX.Y.Z` — andre kørsler er uberørte. Kan et opslag ikke gennemføres, fx fordi pakken endnu ikke findes, regnes tagget som ledigt |
+| `scan` | `true` | Scan imaget med trivy før push. Kritiske sårbarheder med en rettelse og hemmeligheder stopper bygningen; kritiske uden rettelse og høje med rettelse giver en advarsel. Se *Sårbarhedsscanning* nedenfor. Slå kun fra, hvis scanningen ikke kan køre |
 
 `protect_release_tags` er slået fra som standard, så eksisterende kaldere er
 uberørte; caller-eksemplet ovenfor slår det til.
+
+#### Sårbarhedsscanning
+
+Før imaget pushes, bygges det én gang til for `linux/amd64` og scannes med
+trivy. Det sker ved hver bygning, også i pull requests, så et fund viser sig
+der, og ikke først når der tagges. Det rigtige build bagefter henter lagene fra
+cachen og tager kort tid.
+
+| Fund | Udfald |
+|---|---|
+| Kritisk sårbarhed med en rettelse | Fejl. Imaget pushes og signeres ikke |
+| Hemmelighed i imagets filer | Fejl. Fjern den fra imaget, og rotér den |
+| Kritisk sårbarhed uden rettelse | Advarsel. Kørslen er grøn |
+| Høj sårbarhed med en rettelse | Advarsel. Kørslen er grøn |
+| Høj eller lavere uden rettelse | Kun talt i kørslens opsummering |
+
+Grænsen er den samme som scanneren på Docker-værten bruger, og "med rettelse"
+betyder det samme begge steder: trivy melder sårbarheden som rettet i en nyere
+version. En sårbarhed uden rettelse kan ingen gøre noget ved i bygningen.
+Stoppede den, ville bygningen aldrig blive grøn. Hvert fund skrives med pakke,
+installeret version og CVE-nummer, og med rettet version, når der er en; en
+hemmelighed skrives med fil og regel, aldrig med værdien. Opsummeringen af
+kørslen har en tabel med antal pr. alvorlighed.
+
+En sårbarhed kan undtages i `.trivyignore` i roden af app-repoet. Skriv hvorfor
+og hvornår undtagelsen udløber, så den ikke bliver stående af sig selv:
+
+```
+# Bruges kun ved build, ikke når appen kører. Godkendt af Navn Navnesen.
+CVE-2025-47273 exp:2027-03-01
+```
+
+Kan scanningen ikke køre, typisk fordi trivys database ikke kan hentes, er
+kørslen rød, og intet er pushet. Kør igen senere. Haster en udgivelse, kan
+kalderen sætte `scan: false`; så bygges der uden scanning, som før.
+
+Scanningen ved bygning ser kun de images, der bygges her, og kun de
+sårbarheder, der er kendt den dag. Kørende containere, også fremmede images,
+scannes dagligt på Docker-værten.
 
 **Outputs**
 
@@ -546,6 +586,12 @@ eller udgiv som `v2`.
   `docker-publish.yaml` og `deploy-update.yaml` til nyeste cosign i samme PR.
   De to skal følges ad; signering og verifikation med forskellige
   major-udgaver af cosign er ikke efterprøvet.
+- **trivy-imaget bumpes i hånden.** `TRIVY_IMAGE` i `docker-publish.yaml` er
+  pinnet til version og digest og køres med `docker run`, så Dependabot kan
+  ikke se det. Ret begge dele til nyeste trivy-udgivelse, når der er en.
+  Digesten findes med `docker pull aquasec/trivy:<version>` og
+  `docker image inspect aquasec/trivy:<version> --format '{{index .RepoDigests 0}}'`.
+  `validate.yaml` fejler, hvis digesten mangler.
 - **Regexp'en for cosign-identiteten følger filnavnet.** Identiteten i
   certifikatet er stien til `docker-publish.yaml` i dette repo. Omdøbes eller
   flyttes filen, skal `--certificate-identity-regexp` i `deploy-update.yaml`

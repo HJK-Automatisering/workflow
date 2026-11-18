@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
           python -m pip install --quiet pyyaml
           python - <<'PY'
-          import sys, yaml
+          import re, sys, yaml
 
           # Ét sæt kontroller, flere workflows. Inputs og outputs der staar her,
           # er kontrakten udadtil: forsvinder et af dem, fejler kaldere der
@@ -40,8 +40,13 @@ jobs:
           WORKFLOWS = {
               '.github/workflows/docker-publish.yaml': dict(
                   job='build',
-                  inputs=('image_name', 'platforms', 'dockerfile', 'sign', 'protect_release_tags'),
+                  inputs=('image_name', 'platforms', 'dockerfile', 'sign', 'protect_release_tags',
+                          'scan'),
                   outputs=('digest', 'version', 'tags', 'image'),
+                  # Images der koeres med `docker run` i et run-trin, og som
+                  # Dependabot ikke kan se. Et tag alene kan flyttes til et andet
+                  # program; digesten kan ikke.
+                  pinnede_images=('TRIVY_IMAGE',),
               ),
               '.github/workflows/deploy-update.yaml': dict(
                   job='deploy-update',
@@ -104,6 +109,13 @@ jobs:
                   if navn not in (wc.get('outputs') or {}):
                       fejl.append(f'output `{navn}` er forsvundet - kaldere der laeser '
                                   f'det faar en tom streng')
+
+              for env_navn in krav.get('pinnede_images', ()):
+                  ref = str((job.get('env') or {}).get(env_navn, ''))
+                  if not re.fullmatch(r'[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}', ref):
+                      fejl.append(f'`jobs.{job_navn}.env.{env_navn}` skal vaere pinnet som '
+                                  f'<image>:<version>@sha256:<digest>, men er {ref!r}. Et tag '
+                                  f'alene kan flyttes til et andet program.')
 
               # Bindestreger i inputnavne laeses som minus i GitHub-udtryk.
               for navn in (wc.get('inputs') or {}):

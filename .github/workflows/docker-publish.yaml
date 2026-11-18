@@ -48,6 +48,10 @@ on:
         description: 'Nægter at bygge, hvis versionstagget allerede findes i registryet. En ny bygning kræver et nyt versionsnummer. Gælder kun release-tags på formen vX.Y.Z.'
         type: boolean
         default: false
+      scan:
+        description: 'Scan imaget med trivy før push. Kritiske sårbarheder med en rettelse og hemmeligheder i imagets filer stopper bygningen; kritiske uden rettelse og høje med rettelse giver en advarsel. Slå kun fra, hvis scanningen ikke kan køre.'
+        type: boolean
+        default: true
     outputs:
       digest:
         description: 'Image-digest. Brug denne til deploy og verifikation — ikke et tag. Tom på pull_request, hvor der bygges uden at pushe: læg et `if:` på deploy-jobbet i stedet for at lade det fejle på en tom streng.'
@@ -99,6 +103,12 @@ jobs:
       # github-konteksten er det KALDENDE repos, så github.repository peger
       # rigtigt uden at skulle sendes ind.
       IMAGE_NAME: ${{ inputs.image_name || github.repository }}
+      # trivy køres som container og ikke som action: repoet tillader kun
+      # actions fra Docker og sigstore. Pinnet til version OG digest, så et
+      # flyttet tag ikke kan give et andet program. Dependabot kan ikke se
+      # pinnen, så den bumpes i hånden (README, "Vedligehold").
+      # validate.yaml fejler, hvis digesten mangler.
+      TRIVY_IMAGE: aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb
 
     steps:
       - name: Checkout repository
@@ -212,6 +222,173 @@ jobs:
           # Læses af "Rapportér efterladt image": herfra vil en gen-kørsel på
           # samme tag blive afvist, fordi tagget nu findes.
           echo "protected=true" >> "$GITHUB_OUTPUT"
+
+      # Scanningen ligger FØR push, så et image der ikke består, aldrig kommer
+      # i registryet. Efter push og før signering ville et usigneret image med
+      # versionstag blive liggende - og med protect_release_tags kræve et nyt
+      # versionsnummer.
+      #
+      # Kun linux/amd64 scannes. Runneren er fastlåst til amd64, og et
+      # multi-platform-build kan ikke lægges lokalt. Andre platforme bygges af
+      # samme kilde og samme afhængigheder.
+      - name: Forbered scanning
+        id: scan-prep
+        if: ${{ inputs.scan }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/trivy" "${RUNNER_TEMP}/trivy-cache"
+          # Nøglen til databasens cache skifter pr. døgn: trivy henter selv en
+          # ny database, når den gemte er for gammel, og gemmer den så under
+          # dagens nøgle.
+          echo "dato=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      # https://github.com/actions/cache
+      - name: Hent trivys database fra cachen
+        if: ${{ inputs.scan }}
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/trivy-cache
+          key: trivy-db-${{ runner.os }}-${{ steps.scan-prep.outputs.dato }}
+          restore-keys: trivy-db-${{ runner.os }}-
+
+      # Samme kontekst, Dockerfile, build-args og cache som det rigtige build
+      # nedenfor, så det byggede er det samme og det rigtige build henter
+      # lagene fra cachen i stedet for at bygge forfra. Imaget skrives som en
+      # tar-fil, så trivy kan læse det uden Docker-socketen.
+      - name: Byg til scanning
+        if: ${{ inputs.scan }}
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: false
+          tags: ${{ steps.image.outputs.name }}:scan
+          platforms: linux/amd64
+          outputs: type=docker,dest=${{ runner.temp }}/trivy/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            GIT_SHA=${{ github.sha }}
+            ${{ inputs.extra_build_args }}
+
+      # trivy får aldrig Docker-socketen: den giver kontrol over hele værten.
+      # Den får tar-filen, sin database og intet andet, og kører som runnerens
+      # egen bruger, så filerne den skriver, kan caches og læses bagefter.
+      # Uden --exit-code afslutter trivy med 0 også ved fund; et andet
+      # resultat betyder at scanningen ikke kunne køre, typisk fordi
+      # databasen ikke kunne hentes.
+      - name: Scan imaget med trivy
+        if: ${{ inputs.scan }}
+        run: |
+          set -euo pipefail
+          ignore=()
+          if [[ -f .trivyignore ]]; then
+            cp .trivyignore "${RUNNER_TEMP}/trivy/.trivyignore"
+            ignore=(--ignorefile /work/.trivyignore)
+            echo "Bruger .trivyignore fra repoets rod."
+          fi
+          if ! docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -e HOME=/tmp \
+              -v "${RUNNER_TEMP}/trivy-cache:/cache" \
+              -v "${RUNNER_TEMP}/trivy:/work" \
+              "${TRIVY_IMAGE}" image \
+              --cache-dir /cache \
+              --input /work/image.tar \
+              --scanners vuln,secret \
+              --format json \
+              --output /work/trivy.json \
+              --quiet \
+              "${ignore[@]}"; then
+            echo "::error::trivy kunne ikke scanne imaget, typisk fordi sårbarhedsdatabasen ikke kunne hentes. Imaget er ikke pushet. Kør igen senere, eller sæt 'scan: false' i kalderen for at bygge uden scanning."
+            exit 1
+          fi
+
+      # Politikken står her og ikke i trivys flag, så den kan læses ét sted:
+      #   kritisk med rettelse        -> fejl
+      #   hemmelighed                 -> fejl
+      #   kritisk uden rettelse       -> advarsel
+      #   høj med rettelse            -> advarsel
+      #   høj og lavere uden rettelse -> kun talt i opsummeringen
+      # Samme grænse som scanneren på Docker-værten (docker-monitor), og samme
+      # definition af "med rettelse": trivys Status er "fixed". En kritisk uden
+      # rettelse kan ingen gøre noget ved i bygningen; stoppede den, ville den
+      # aldrig blive grøn. Men den skal ses, så den advarer.
+      - name: Afgør scanningen
+        if: ${{ inputs.scan }}
+        env:
+          RESULTAT: ${{ runner.temp }}/trivy/trivy.json
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys
+          from collections import Counter
+
+          def en_linje(tekst):
+              # En annotation er én linje; % skal kodes, ellers aedes tegnene.
+              return ' '.join(str(tekst).split()).replace('%', '%25')
+
+          with open(os.environ['RESULTAT'], encoding='utf-8') as fh:
+              data = json.load(fh)
+
+          fejl, advarsler = [], []
+          alle, med_rettelse = Counter(), Counter()
+          hemmeligheder = 0
+          sete = set()
+          for resultat in data.get('Results') or []:
+              target = resultat.get('Target', '')
+              for v in resultat.get('Vulnerabilities') or []:
+                  noegle = (v.get('VulnerabilityID'), v.get('PkgName'),
+                            v.get('InstalledVersion'), target)
+                  if noegle in sete:
+                      continue
+                  sete.add(noegle)
+                  alvor = v.get('Severity') or 'UNKNOWN'
+                  alle[alvor] += 1
+                  hvad = (f"{v.get('VulnerabilityID')} i {v.get('PkgName')} "
+                          f"{v.get('InstalledVersion')} ({target}).")
+                  if v.get('Status') != 'fixed':
+                      if alvor == 'CRITICAL':
+                          advarsler.append(f'Kritisk sårbarhed uden rettelse: {hvad} '
+                                           f'Kan undtages i .trivyignore.')
+                      continue
+                  med_rettelse[alvor] += 1
+                  hvad += f" Rettet i {v.get('FixedVersion')}."
+                  if alvor == 'CRITICAL':
+                      fejl.append(f'Kritisk sårbarhed med rettelse: {hvad}')
+                  elif alvor == 'HIGH':
+                      advarsler.append(f'Høj sårbarhed med rettelse: {hvad}')
+              for s in resultat.get('Secrets') or []:
+                  hemmeligheder += 1
+                  # Aldrig Match eller Code: de indeholder selve værdien.
+                  fejl.append(f"Hemmelighed i {target}, linje {s.get('StartLine')}: "
+                              f"{s.get('Title') or s.get('RuleID')} (regel {s.get('RuleID')}). "
+                              f"Fjern den fra imaget og rotér den.")
+
+          for f in fejl:
+              print(f'::error::{en_linje(f)}')
+          for a in advarsler:
+              print(f'::warning::{en_linje(a)}')
+
+          linjer = ['### Sårbarhedsscanning (trivy, linux/amd64)', '',
+                    '| Alvorlighed | I alt | Med rettelse |', '|---|---|---|']
+          for alvor in ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'):
+              linjer.append(f'| {alvor} | {alle[alvor]} | {med_rettelse[alvor]} |')
+          linjer += ['', f'Hemmeligheder: {hemmeligheder}', '',
+                     'Kritisk med rettelse og hemmeligheder stopper bygningen. '
+                     'Kritisk uden rettelse og høj med rettelse er advarsler. '
+                     'Høj og lavere uden rettelse tælles kun.']
+          if fejl:
+              linjer += ['', f'**{len(fejl)} fund stoppede bygningen. Imaget er ikke pushet.**']
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as fh:
+              fh.write('\n'.join(linjer) + '\n')
+
+          if fejl:
+              print(f'{len(fejl)} fund stoppede bygningen. Imaget er ikke pushet.')
+              sys.exit(1)
+          print(f'Scanningen bestod: {len(advarsler)} advarsler.')
+          PY
 
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
