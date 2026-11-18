@@ -62,4 +62,4 @@ Bygget i én session uden for rollerne, på grenen `claude/lint-kontakt-b769aa`.
 
 **Efterprøvet lokalt** med `.venv` og Docker: begge scripttests fra `validate.yaml` er grønne. docker-monitors compose-fil består (tre advarsler fra dens egne undtagelser). En undtagelse med slåfejl i servicenavnet giver en død undtagelse, og fejlen bliver stående.
 
-**Kørt mod lokale kloner af app-repoer:** ni har `deploy/docker-compose.yml`, og alle ni fejler på `kontakt`: ba-bfo-fagligt-ledelsestilsyn, ba-emergency-rosters, ba-fritidsportalen, ba-kmd-booking-lookup, ba-kontingentstoettepuljen, ba-mp3-converter, ba-nemplads-client, ba-pdf-slicer og ba-sofus-client. Klonerne kan være bagud for deres `main`. Det er flere end de fire kendte kaldere i `CLAUDE.md`.
+**Kørt mod lokale kloner af app-repoer:** ni har `deploy/docker-compose.yml`, og alle ni fejler på `kontakt`. Navnene står ikke her, fordi repoet er offentligt og app-repoerne er private. Klonerne kan være bagud for deres `main`. Det er flere end de fire kendte kaldere i `CLAUDE.md`.
