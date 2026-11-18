@@ -12,6 +12,7 @@ Procesregler står i `AGENTS.md`. Åbent arbejde står på `docs/BOARD.md`.
 - Python 3 i `run:`-trin til validering, kun `pyyaml`. Ingen tredjeparts-actions ud over Docker og sigstore.
 - Python-scripts i `scripts/` med `ruamel.yaml`, pinnet i `requirements.txt`. Lokale Python-kald går gennem `.venv` (`.venv\Scripts\python.exe`), som ikke versionsstyres.
 - cosign v3.1.3 til keyless signering af images mod GHCR og til verifikation før udrulning.
+- trivy 0.76.2 som container (`aquasec/trivy`, pinnet til digest i `TRIVY_IMAGE`) til sårbarhedsscanning før push i `docker-publish.yaml`. Dependabot kan ikke se pinnen; den bumpes i hånden.
 - Dependabot bumper actions og pip-pinnen ugentligt, grupperet `docker`, `sigstore` og `python`.
 
 ## Kommandoer og udgivelse
