@@ -1,5 +1,5 @@
 ---
-kontrakt-version: 28
+kontrakt-version: 29
 ---
 
 # AGENTS.md — fælles kontrakt
@@ -412,10 +412,10 @@ Skriv den ikke om, og tilføj intet. Markup står under `### Bundlinje` i `docs/
 | I teksten | Nøgle | Hvor værdien kommer fra |
 |---|---|---|
 | `TEAMNAVN` | `TEAM_NAME` | Påkrævet indstilling på stakken |
-| `EMAIL` | `CONTACT_EMAIL` | Påkrævet indstilling på stakken |
+| `EMAIL` | `CONTACT_EMAIL` | Påkrævet indstilling på stakken. Samme nøgle og samme person som stakkens kontaktperson; se `## En stak og dens kontaktperson` |
 | `X.Y.Z` | `APP_VERSION` | Bygget ind i imaget af `docker-publish` |
 
-- **`TEAM_NAME` og `CONTACT_EMAIL` er påkrævede.** De står i `.env.example` uden værdi og i compose-filen som `${TEAM_NAME}` og `${CONTACT_EMAIL}`. Værdierne sættes kun på stakken — aldrig i koden, i compose-filen eller i repoet.
+- **`TEAM_NAME` og `CONTACT_EMAIL` er påkrævede.** De står i `.env.example` uden værdi og i compose-filen som `${TEAM_NAME}` og `${CONTACT_EMAIL}`. Værdierne sættes kun på stakken — aldrig i koden, i compose-filen eller i repoet. `CONTACT_EMAIL` er den samme variabel som stakkens kontaktlabel bruger. Den sættes én gang på stakken og bruges begge steder.
 - **Appen nægter at starte** når en af de to mangler eller er tom. Loggen siger hvilken nøgle der mangler — aldrig en værdi.
 - **Versionen er `APP_VERSION`**, som `docker-publish` bygger ind i imaget. Den skrives aldrig fast i koden. Er den tom, fx ved lokal kørsel, udelades *. Version X.Y.Z*, og teksten slutter efter adressen: *Udviklet af TEAMNAVN. Ved udfordringer kontakt EMAIL*.
 - **Værdierne læses på serveren.** Hvordan de når siden, afhænger af stakken. De bages aldrig ind i en statisk fil ved build.
@@ -590,6 +590,72 @@ opgave. Ret det ikke i tavshed.
 Klikkene i Authentik og proxyen står i `AUTHENTIK.md` og
 `NGINX-PROXY-MANAGER.md` i plugin-repoet. Dem udfører et menneske, ikke
 rollerne.
+
+## En stak og dens kontaktperson
+
+Gælder hvert projekt der udrulles som en stak på Docker-værten: en
+compose-fil som Portainer kører, typisk `deploy/docker-compose.yml`.
+Kendetegnet er compose-filen, eller at projektets dokumenter siger at det
+kører som en stak.
+
+**Hver stak har en kontaktperson.** Overvågningen af Docker-værten,
+`HJK-Automatisering/docker-monitor`, læser labelen `hjk.kontakt` på stakkens
+containere. Den sender adressen en ugentlig rapport om sårbarheder og en
+morgenmail om containere der er gået ned. **En stak uden labelen får ingen
+mail.** Så er der ingen der hører om det, når den har en kritisk sårbarhed
+eller ligger ned.
+
+Compose-filen skal:
+
+1. **Have labelen på mindst én tjeneste**, med variablen som værdi:
+
+   ```yaml
+   services:
+     web:
+       labels:
+         hjk.kontakt: ${CONTACT_EMAIL}
+   ```
+
+2. **Bruge den samme variabel overalt.** Står labelen på flere tjenester, er
+   værdien `${CONTACT_EMAIL}` alle steder. Forskellige værdier giver en
+   konflikt i overvågningen, og så får alle adresserne mailen.
+
+Og stakken skal:
+
+3. **Have `CONTACT_EMAIL` sat**, med en adresse der ligner en mailadresse.
+   Ellers tæller labelen som manglende. Nøglen står i `.env.example` uden
+   værdi. Værdien sættes kun på stakken — aldrig i compose-filen, i koden
+   eller i repoet. Se `## Værdier hører i .env`.
+
+**Én tjeneste er nok.** Labelen gælder hele stakken.
+
+**`CONTACT_EMAIL` er den samme nøgle som i bundlinjen.** Har projektet
+designstandarden, viser bundlinjen den samme adresse, efter
+`### Bundlinjen er fast`. Det er én person og én variabel på stakken, ikke
+to. Uden standarden bruges variablen kun til labelen, og appen behøver ikke
+læse den.
+
+Reglerne for værdien, og hvad stakkens ejer får, står i `README.md` i
+`HJK-Automatisering/docker-monitor`, under *Til dig der ejer en stack*.
+
+**Hvem gør hvad:**
+
+- `architect` skriver labelen og nøglen ind i `Færdig når` i den opgave der
+  sætter en stak op, eller som flytter en stak ind i git. At værdien sættes på
+  stakken, står som menneskets trin.
+- `developer` sætter labelen i compose-filen og nøglen i `.env.example` uden
+  værdi. Værdien er ikke `developer`s at sætte. Den skriver under *Hvad er ikke
+  lavet, og hvorfor* at mennesket sætter `CONTACT_EMAIL` på stakken, som
+  menneskets trin, ikke som noget der mangler.
+- `reviewer` melder det som fund, når compose-filen til udrulning mangler
+  labelen, når `.env.example` mangler nøglen, eller når labelen har en anden
+  værdi end `${CONTACT_EMAIL}`.
+- `security` holder compose-filen op mod de samme punkter før en udrulning.
+  Hvert punkt der ikke holder, er et fund. Står en adresse skrevet i repoet i
+  stedet for variablen, er det også et fund: en adresse er en persons data.
+
+**Står der en stak i drift uden labelen:** sig det, og lad det blive en
+opgave. Ret det ikke i tavshed.
 
 ## Versionering
 
