@@ -1,7 +1,7 @@
 ---
 nummer: task-0008
 titel: Sårbarhedsscanning med trivy før push i docker-publish
-status: planlagt
+status: afsluttet
 kilde: interview
 oprettet: 2026-11-17
 ---
