@@ -598,6 +598,7 @@ forkerte argumenter.
 | `alias` | en service på `nginx-proxy-manager_default` mangler et netværksalias. Ingen krav til aliasets form |
 | `unoedigt-netvaerk` | et netværk stacken selv opretter, har kun én service på sig. Det gælder også `default`, når en service har skrevet det under `networks:`. Hvert netværk optager et adresseområde på værten, og der er kun plads til omkring 31. Står servicen på andre netværk, fjernes det overflødige; står den kun på det ene, sættes `network_mode: bridge` |
 | `implicit-netvaerk` | en service har hverken `networks:` eller `network_mode`. Så sætter compose den på stackens `default`, og stacken opretter et netværk, som ingen har valgt. Vælg det: `network_mode: bridge` for en service, der kun taler ud, ellers de netværk den skal tale med andre services på — også `default`, skrevet ud |
+| `kontakt` | ingen service har labelen `hjk.kontakt`, eller en service har den med en anden værdi end præcis `${CONTACT_EMAIL}` — fx en fast adresse, en anden variabel eller `${CONTACT_EMAIL:-standard}`. Labelen fortæller docker-monitor, hvem der får stackens mails om sårbarheder og nedbrud; uden den får ingen dem. Én service med labelen dækker hele stacken. Adressen sættes som stackens variabel `CONTACT_EMAIL` i Portainer og står aldrig i repoet. Kun `labels:` på servicen tæller, ikke `deploy.labels` |
 
 `environment:` tjekkes i både mapping-form (`NØGLE: ${NØGLE}`) og listeform
 (`- NØGLE=${NØGLE}`). Én nøgle giver én fejl; `hemmelighed` vinder over
@@ -625,6 +626,9 @@ x-undtagelser:
 - En undtagelse, der ikke rammer nogen fejl, er død og giver en advarsel.
 - For `eksternt-netvaerk` og `unoedigt-netvaerk` er `service` netværkets navn. En committet
   `stack.env` eller `.env` kan ikke undtages.
+- For `kontakt` er `service` den service, der skulle have båret labelen. Den
+  undtager både en forkert værdi på den service og en stack helt uden
+  kontaktperson. Uden labelen får stacken ingen mails fra docker-monitor.
 
 ### Lokal kørsel
 
@@ -649,6 +653,10 @@ services:
     # Sættes af deploy-update ved release. Ret ikke i hånden.
     image: ghcr.io/hjk-automatisering/<app>:1.4.2
     restart: unless-stopped
+    labels:
+      # Stackens kontaktperson. Adressen er stackens variabel CONTACT_EMAIL,
+      # og én service med labelen dækker hele stacken.
+      hjk.kontakt: "${CONTACT_EMAIL}"
     # Aldrig værdier her. De sættes som stackens variabler i Portainer og
     # substitueres ind ved udrulning — kun nøgler med ${NØGLE} som værdi.
     environment:

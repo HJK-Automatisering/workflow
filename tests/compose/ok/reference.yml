@@ -6,6 +6,10 @@ services:
     # Sættes af deploy-update ved release. Ret ikke i hånden.
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
     restart: unless-stopped
+    labels:
+      # Stackens kontaktperson. Adressen er stackens variabel CONTACT_EMAIL,
+      # og én service med labelen dækker hele stacken.
+      hjk.kontakt: "${CONTACT_EMAIL}"
     # Aldrig værdier her. De sættes som stackens variabler i Portainer og
     # substitueres ind ved udrulning — kun nøgler med ${NØGLE} som værdi.
     environment:

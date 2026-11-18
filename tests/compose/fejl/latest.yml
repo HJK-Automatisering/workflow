@@ -3,6 +3,8 @@
 services:
   web:
     image: ghcr.io/hjk-automatisering/example-app
+    labels:
+      hjk.kontakt: "${CONTACT_EMAIL}"
     restart: unless-stopped
     network_mode: bridge
     mem_limit: 512m

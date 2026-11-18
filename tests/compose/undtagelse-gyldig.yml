@@ -1,6 +1,8 @@
-# To gyldige undtagelser: fejlene bliver advarsler, og exit-koden er 0. Den
+# Tre gyldige undtagelser: fejlene bliver advarsler, og exit-koden er 0. Den
 # anden undtagelse er aeldre end et aar og giver derudover en advarsel om
-# alderen - den er stadig gyldig.
+# alderen - den er stadig gyldig. Den tredje undtager stackens manglende
+# kontaktperson: ingen service har labelen, og undtagelsen naevner den
+# service der skulle have baaret den.
 x-undtagelser:
   - service: web
     regel: bind-mount
@@ -12,6 +14,11 @@ x-undtagelser:
     begrundelse: "Skal laese fra en USB-enhed paa vaerten"
     godkendt-af: "Navn Navnesen"
     dato: 2024-01-15
+  - service: web
+    regel: kontakt
+    begrundelse: "Leverandoerens stack; ingen hos os modtager mail om den"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-10-01"
 
 services:
   web:

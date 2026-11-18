@@ -283,7 +283,7 @@ jobs:
               'build', 'latest', 'privileged', 'docker-sock', 'bind-mount', 'host-adgang',
               'hemmelighed', 'env-vaerdi', 'env-fil', 'restart', 'mem-limit', 'logging',
               'ports', 'container-name', 'eksternt-netvaerk', 'alias', 'unoedigt-netvaerk',
-              'implicit-netvaerk',
+              'implicit-netvaerk', 'kontakt',
           )
           # Fund der ikke er regler. Et eksempel maa ikke snuble over dem - saa
           # viser det ikke det, det skulle.
@@ -342,14 +342,15 @@ jobs:
 
           # 3) Gyldige undtagelser: exit 0, fejlene er blevet advarsler med
           #    regelnavnet og godkenderen, og den gamle undtagelse giver en
-          #    advarsel om alderen.
+          #    advarsel om alderen. `kontakt` er et fund paa stacken uden
+          #    service, og undtagelsen naevner en af stackens services.
           fil = Path('tests/compose/undtagelse-gyldig.yml')
           rc, out = koer(fil)
           warnings = linjer(out, 'warning')
           if rc != 0 or linjer(out, 'error'):
               fejl.append(f'{fil}: forventede exit 0 uden fejl, fik exit {rc}:')
               fejl.extend('  ' + l for l in linjer(out, 'error'))
-          for regel in ('bind-mount', 'host-adgang'):
+          for regel in ('bind-mount', 'host-adgang', 'kontakt'):
               if not any(f'[{regel}]' in l and 'Undtaget' in l for l in warnings):
                   fejl.append(f'{fil}: ingen ::warning med [{regel}] og "Undtaget". '
                               f'Advarsler: {warnings!r}')
@@ -374,10 +375,30 @@ jobs:
           if not any('[undtagelse]' in l and 'daekker ingen fejl' in l for l in linjer(out, 'warning')):
               fejl.append(f'{fil}: ingen ::warning om den doede undtagelse')
 
+          # 5) Kontaktpersonen med forkert vaerdi: en fast adresse, en anden
+          #    variabel og en standardvaerdi giver hver én fejl paa `kontakt`
+          #    paa sin egen service, og stacken faar ikke ogsaa fejlen for at
+          #    mangle labelen. Ingen fejl paa andre regler.
+          fil = Path('tests/compose/kontakt-forkert-vaerdi.yml')
+          rc, out = koer(fil)
+          errors = linjer(out, 'error')
+          if rc != 1:
+              fejl.append(f'{fil}: forventede exit 1, fik {rc}')
+          for service in ('web', 'worker', 'cron'):
+              if sum(1 for l in errors if f'[kontakt] {service}:' in l) != 1:
+                  fejl.append(f'{fil}: forventede praecis én ::error med [kontakt] paa `{service}`. '
+                              f'Fejl: {errors!r}')
+          if any('[kontakt]' in l and 'ingen service har labelen' in l for l in errors):
+              fejl.append(f'{fil}: stacken fik ogsaa fejlen for manglende label, selvom labelen findes')
+          andre = sorted({r for r in REGLER + ANDRE if r != 'kontakt'
+                          and any(f'[{r}]' in l for l in errors)})
+          if andre:
+              fejl.append(f'{fil}: skal kun bryde `kontakt`, men gav ogsaa fejl paa {", ".join(andre)}')
+
           if fejl:
               for f in fejl:
                   print(f'::error file={script}::{f}')
               sys.exit(1)
           print(f'{script}: ok ({len(gode)} gode eksempler, {len(REGLER)} regler, gyldig og '
-                f'ugyldig undtagelse)')
+                f'ugyldig undtagelse, kontaktperson med forkert vaerdi)')
           PY

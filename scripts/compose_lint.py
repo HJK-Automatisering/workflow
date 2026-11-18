@@ -23,7 +23,8 @@ Raekkefoelge:
        kontrol sker i GitHub Actions.
     3. Reglerne, pr. service - og for netvaerk paa topniveau. En service
        skal selv vaelge sit netvaerk (`implicit-netvaerk`), saa stacken aldrig
-       opretter et `default`-netvaerk som ingen har bedt om.
+       opretter et `default`-netvaerk som ingen har bedt om. Kontaktpersonen
+       (`kontakt`) tjekkes for stacken som helhed.
     4. Undtagelser i topniveau-feltet `x-undtagelser`.
 
 Hver fejl og advarsel skrives paa stderr i det format GitHub Actions viser
@@ -52,7 +53,9 @@ regelnavn, er selv en fejl, og undtagelsen daekker saa intet. En dato aeldre
 end et aar giver en advarsel; en undtagelse der ikke rammer nogen fejl, er
 doed og giver ogsaa en advarsel. For reglerne `eksternt-netvaerk` og
 `unoedigt-netvaerk` er `service` netvaerkets navn, fordi reglen gaelder et
-netvaerk og ikke en service. Fund
+netvaerk og ikke en service. For `kontakt` daekker en undtagelse paa en
+hvilken som helst service i filen ogsaa fundet for en stack helt uden
+kontaktperson, fordi én label daekker hele stacken. Andre fund
 uden service - en committet .env eller stack.env i compose-filens mappe -
 kan ikke undtages.
 
@@ -84,10 +87,14 @@ REGLER = (
     'build', 'latest', 'privileged', 'docker-sock', 'bind-mount', 'host-adgang',
     'hemmelighed', 'env-vaerdi', 'env-fil', 'restart', 'mem-limit', 'logging',
     'ports', 'container-name', 'eksternt-netvaerk', 'alias', 'unoedigt-netvaerk',
-    'implicit-netvaerk',
+    'implicit-netvaerk', 'kontakt',
 )
 
 PROXY_NETVAERK = 'nginx-proxy-manager_default'
+# docker-monitor laeser labelen og sender stackens kontaktperson sine mails.
+# Vaerdien er altid stackens variabel; en adresse hoerer aldrig i repoet.
+KONTAKT_LABEL = 'hjk.kontakt'
+KONTAKT_VAERDI = '${CONTACT_EMAIL}'
 DOCKER_SOCK = '/var/run/docker.sock'
 FLYTBARE_TAGS = ('latest', 'main', 'master', 'stable', 'edge', 'dev', 'nightly', 'lts')
 HOST_ADGANG_NOEGLER = ('devices', 'cap_add', 'sysctls', 'security_opt')
@@ -446,6 +453,51 @@ def lint_netvaerk_brug(services: dict, doc) -> list[Fund]:
     return fund
 
 
+def lint_kontakt(services: dict, doc) -> list[Fund]:
+    """Stackens kontaktperson: labelen `hjk.kontakt` med praecis
+    `${CONTACT_EMAIL}` paa mindst én service.
+
+    Én service med labelen daekker hele stacken, fordi docker-monitor laeser
+    kontaktpersonen pr. stack. Derfor er en manglende label et fund paa
+    stacken (emne None) og ikke paa hver service. En label med en anden
+    vaerdi - en fast adresse, en anden variabel, en standardvaerdi - er et
+    fund paa den service, der baerer den. Har en service labelen med forkert
+    vaerdi, siger det fund allerede hvad der skal rettes, og stacken faar
+    ikke ogsaa et fund for at mangle den. Én fejl pr. aarsag.
+
+    Kun `labels:` paa servicen taeller. `deploy.labels` saettes paa
+    swarm-servicen og ses ikke paa containeren, som docker-monitor laeser.
+    """
+    fund: list[Fund] = []
+    har_label = False
+    for navn, svc in services.items():
+        if not isinstance(svc, dict):
+            continue
+        labels = svc.get('labels')
+        # Labels har samme to former som environment: mapping og `- noegle=vaerdi`.
+        for noegle, vaerdi, indeks in env_poster(labels):
+            if noegle.strip() != KONTAKT_LABEL:
+                continue
+            har_label = True
+            if vaerdi == KONTAKT_VAERDI:
+                continue
+            line = (item_line(labels, indeks, key_line(services, navn)) if indeks is not None
+                    else key_line(labels, noegle, key_line(services, navn)))
+            fund.append(Fund('kontakt', str(navn), line,
+                             f'labelen `{KONTAKT_LABEL}` skal have vaerdien praecis '
+                             f'`{KONTAKT_VAERDI}`. Skriv `{KONTAKT_LABEL}: "{KONTAKT_VAERDI}"` og '
+                             f'saet adressen som stackens variabel `CONTACT_EMAIL` i Portainer - '
+                             f'aldrig i filen.'))
+    if not har_label:
+        fund.append(Fund('kontakt', None, key_line(doc, 'services', 1),
+                         f'ingen service har labelen `{KONTAKT_LABEL}`, saa stacken har ingen '
+                         f'kontaktperson og faar ingen mail fra docker-monitor. Skriv '
+                         f'`{KONTAKT_LABEL}: "{KONTAKT_VAERDI}"` under `labels:` paa en service, '
+                         f'og saet adressen som stackens variabel `CONTACT_EMAIL` i Portainer. '
+                         f'En enkelt service daekker hele stacken.'))
+    return fund
+
+
 def lint_env_filer(path: Path) -> list[Fund]:
     """Tjek med `git ls-files`, om en stack.env eller .env er committet i
     compose-filens egen mappe. Kun den mappe: docker compose laeser alene en
@@ -538,7 +590,22 @@ def til_dato(v) -> date | None:
     return None
 
 
-def anvend_undtagelser(doc, fund: list[Fund]) -> list[Fund]:
+def daekker(f: Fund, regel: str, service: str, tjenester: set[str]) -> bool:
+    """Om en gyldig undtagelse for `service`/`regel` daekker fundet `f`.
+
+    Fundet for en stack uden kontaktperson har ingen service, fordi én label
+    daekker hele stacken. Det undtages med en hvilken som helst service i
+    filen - den der skulle have baaret labelen. En slaafejl i navnet daekker
+    intet, saa undtagelsen meldes doed.
+    """
+    if f.regel != regel or f.advarsel:
+        return False
+    if f.emne == service:
+        return True
+    return regel == 'kontakt' and f.emne is None and service in tjenester
+
+
+def anvend_undtagelser(doc, fund: list[Fund], tjenester: set[str] = frozenset()) -> list[Fund]:
     """Goer fund daekket af gyldige undtagelser til advarsler, og tilfoejer
     fund for undtagelser der selv er forkerte eller doede."""
     if 'x-undtagelser' not in doc:
@@ -592,7 +659,7 @@ def anvend_undtagelser(doc, fund: list[Fund]) -> list[Fund]:
 
         ramt = False
         for f in fund:
-            if f.regel == regel and f.emne == service and not f.advarsel:
+            if daekker(f, regel, service, tjenester):
                 f.advarsel = True
                 f.besked += f' Undtaget: godkendt af {godkendt_af.strip()} den {dato.isoformat()}.'
                 ramt = True
@@ -648,8 +715,9 @@ def lint(path: Path) -> list[Fund]:
 
     fund.extend(lint_netvaerk(doc))
     fund.extend(lint_netvaerk_brug(services, doc))
+    fund.extend(lint_kontakt(services, doc))
     fund.extend(lint_env_filer(path))
-    return anvend_undtagelser(doc, fund)
+    return anvend_undtagelser(doc, fund, {str(n) for n in services})
 
 
 def main(argv: list[str] | None = None) -> int:

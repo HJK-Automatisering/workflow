@@ -1,0 +1,41 @@
+# Labelen hjk.kontakt findes, men med en forkert vaerdi paa hver service: en
+# fast adresse (mapping-form), en anden variabel (listeform) og en
+# standardvaerdi. Hver giver sin egen fejl paa `kontakt`, og stacken faar
+# ikke ogsaa en fejl for at mangle kontaktperson - én fejl pr. aarsag.
+# example.com er et reserveret domaene til eksempler, ikke en rigtig adresse.
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    labels:
+      hjk.kontakt: "drift@example.com"
+    restart: unless-stopped
+    network_mode: bridge
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    labels:
+      - hjk.kontakt=${OWNER_EMAIL}
+    restart: unless-stopped
+    network_mode: bridge
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  cron:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    labels:
+      hjk.kontakt: "${CONTACT_EMAIL:-drift@example.com}"
+    restart: unless-stopped
+    network_mode: bridge
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

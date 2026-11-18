@@ -4,6 +4,8 @@
 services:
   web:
     image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    labels:
+      hjk.kontakt: "${CONTACT_EMAIL}"
     restart: unless-stopped
     networks:
       default:
