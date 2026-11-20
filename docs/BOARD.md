@@ -21,7 +21,6 @@ en rapport der har stået her i dagevis, er et fund på vej til at blive glemt.>
 
 | Nr. | Titel | Status | Kilde |
 |---|---|---|---|
-| task-0009 | compose-lint: stackens kontaktperson i labelen hjk.kontakt | i-gang | interview |
 
 <`Status` er `planlagt`, `i-gang` eller `afsluttet`. `Kilde` er `interview`
 eller nummeret på den rapport opgaven kom af.>
@@ -50,6 +49,7 @@ ellers fyldes `docs/tasks/` med halve idéer.>
 | task-0005 | compose-lint: regler for compose-filer i pull requests og før udrulning | bygget |
 | task-0007 | Afgræns env-fil-reglen til compose-filens mappe | bygget |
 | task-0008 | Sårbarhedsscanning med trivy før push i docker-publish | bygget |
+| task-0009 | compose-lint: stackens kontaktperson i labelen hjk.kontakt | bygget |
 
 <`Udfald` er `bygget` eller `afvist`. Flyt hertil når architect har vurderet
 opgaven — ikke når udrulningen er sket; udrulning er ikke en status.

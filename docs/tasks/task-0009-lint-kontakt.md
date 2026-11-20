@@ -1,7 +1,7 @@
 ---
 nummer: task-0009
 titel: compose-lint: stackens kontaktperson i labelen hjk.kontakt
-status: i-gang
+status: afsluttet
 kilde: interview
 oprettet: 2026-11-18
 ---
@@ -41,6 +41,7 @@ intet
 ## Beslutninger
 - BESLUTTET: Regelnavnet er `kontakt`.
 - BESLUTTET: Reglen giver fejl, ikke advarsel. `v1` flyttes først, når kalderne har labelen. Svar fra mennesket 2026-11-18.
+- REVIDERET 2026-11-18: `v1` er flyttet i `v1.5.0`, før kalderne har labelen. Kalderne er varslet i en fælles besked, og fejlen er påmindelsen. Det erstatter kriteriet om at efterprøve kalderne før `v1` flyttes.
 - BESLUTTET: Fundet for en stack uden labelen har ingen service. En undtagelse på en hvilken som helst service i filen dækker det.
 
 ## Åbne punkter
