@@ -1,7 +1,7 @@
 ---
 nummer: task-0010
 titel: deploy-update kan pushe som GitHub App
-status: i-gang
+status: afsluttet
 kilde: bestilling fra udviklingscentralen (task-0030 dér)
 oprettet: 2026-11-25
 ---

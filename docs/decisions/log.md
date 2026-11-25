@@ -10,6 +10,7 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-11-25 | task-0010 | Afsluttet som bygget. `v1.7.0` udgivet, og `v1` flyttet dertil | Additiv ændring: to nye valgfrie secrets, ingen eksisterende kalder mærker noget. Valideringen grøn på `main` (46ab0df) efter udgivelsen — tagget blev sat før kørslen, men den bekræftede commit'en. Kørslen som app prøves først fra det bestillende repo, når dets kalder sender de to secrets; det er det repos eget trin | architect |
 | 2026-11-25 | task-0010 | Oprettet uden interview, fra bestillingen fra udviklingscentralen (dens task-0030): to valgfrie secrets på deploy-update, token via actions/create-github-app-token, uændret adfærd uden dem, kalderen sender dem eksplicit | Formen stod færdig i bestillingen, og den indbyggede Actions-app kan ikke stå på org-rulesettets bypass-liste (422, efterprøvet 2026-11-25) | architect |
 | 2026-11-25 | task-0010 | Kun én af de to secrets sat er en fejl, ikke et stille fald tilbage til GITHUB_TOKEN | En slåfejl i kalderen skal vise sig med det samme; en afvist push senere ville pege på grenbeskyttelse i stedet for på kalderens secrets | architect |
 | 2026-11-25 | task-0010 | Commit-identiteten er appens bot-bruger, slået op dynamisk med app-tokenet; actions/create-github-app-token pinnet til v3.4.0 (f418cff) | Ingen hårdkodet app i det genbrugelige workflow; `actions`-organisationen er GitHubs egen, samme kategori som checkout — ikke en ny tredjepart | architect |
