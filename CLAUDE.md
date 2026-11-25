@@ -27,7 +27,7 @@ Hvordan repoet udgives (minor-tag og flyt af `v1`, `v2` ved brud, versionstags f
 |---|---|
 | `README.md` | Caller-eksempel, inputs og outputs, release, tilbagerulning, migrering og udgivelse af repoet. Forlægget for caller-skabelonen i agenter-repoet |
 | `.github/workflows/docker-publish.yaml` | Genbrugeligt build-, push- og signeringsworkflow. Outputs `digest`, `version`, `tags`, `image` |
-| `.github/workflows/deploy-update.yaml` | Genbrugeligt udrulningsworkflow. Verificerer signatur og digest, linter compose-filen og skriver `<image>:<version>` i den på `main` |
+| `.github/workflows/deploy-update.yaml` | Genbrugeligt udrulningsworkflow. Verificerer signatur og digest, linter compose-filen og skriver `<image>:<version>` i den på `main`. Pusher som GitHub App, når kalderen sender de to valgfrie app-secrets — ellers som `GITHUB_TOKEN` |
 | `.github/workflows/compose-lint.yaml` | Genbrugeligt lint-workflow. Kører `scripts/compose_lint.py` mod kalderens compose-fil i pull requests. Input `compose_path`, ingen outputs |
 | `.github/workflows/validate.yaml` | Strukturvalidering af de genbrugelige workflows og selvtest af begge scripts mod `tests/compose/`. Kører kun i dette repo |
 | `.github/dependabot.yml` | Bumper SHA-pinnede actions og pinnen i `requirements.txt` |

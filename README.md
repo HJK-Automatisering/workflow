@@ -167,6 +167,14 @@ jobs:
       digest: ${{ needs.build.outputs.digest }}
       version: ${{ needs.build.outputs.version }}
       # compose_path: deploy/docker-compose.yml   # standard; ret kun hvis filen ligger et andet sted
+
+    # # Kun hvis main er beskyttet af et ruleset: push som organisationens
+    # # deploy-app i stedet for GITHUB_TOKEN. Send de to secrets eksplicit —
+    # # aldrig `secrets: inherit`. Se "Hvis main beskyttes" i README for
+    # # HJK-Automatisering/workflow.
+    # secrets:
+    #   deploy_bot_app_id: ${{ secrets.DEPLOY_BOT_APP_ID }}
+    #   deploy_bot_private_key: ${{ secrets.DEPLOY_BOT_PRIVATE_KEY }}
 ```
 
 Fire ting at vide om eksemplet:
@@ -287,10 +295,22 @@ verificerede digest. Har ingen outputs.
 | `digest` | *(påkrævet)* | Digest på det byggede image. Tag outputtet `digest` fra `docker-publish.yaml`. Det er digesten, der verificeres — ikke tagget |
 | `version` | *(påkrævet)* | Versionen uden `v`, fx `1.2.3`. Tag outputtet `version` fra `docker-publish.yaml`. Skrives som `<image>:<version>` i compose-filen |
 
+**Secrets** — begge valgfrie, og kun til repos hvor `main` er beskyttet af et
+ruleset; se [Hvis `main` beskyttes](#hvis-main-beskyttes):
+
+| Secret | Standard | Beskrivelse |
+|---|---|---|
+| `deploy_bot_app_id` | *(ikke sat)* | Id på den GitHub App der skal pushe til `main`. Sættes sammen med `deploy_bot_private_key` — er kun den ene sat, stopper jobbet med en fejl i stedet for i stilhed at falde tilbage til `GITHUB_TOKEN` |
+| `deploy_bot_private_key` | *(ikke sat)* | Appens private nøgle, hele `.pem`-indholdet. Sættes sammen med `deploy_bot_app_id` |
+
+Er begge sat, mintes et kortlivet token med `actions/create-github-app-token`,
+og checkout og push bruger det; commit'en står som appen i historikken. Er
+ingen af dem sat, er adfærden præcis som før: `GITHUB_TOKEN`, der følger
+automatisk med og rækker, så længe `main` ikke er beskyttet. Send dem
+eksplicit fra kalderen — aldrig med `secrets: inherit`.
+
 **Rettigheder i kalderen:** `contents: write`, `packages: read`. Ingen
-`id-token`; verifikation kræver det ikke. Ingen `secrets:`; `GITHUB_TOKEN`
-følger automatisk med og rækker, så længe `main` ikke er beskyttet — se
-[Hvis `main` beskyttes](#hvis-main-beskyttes).
+`id-token`; verifikation kræver det ikke.
 
 ### `compose-lint.yaml`
 
@@ -367,7 +387,8 @@ Hvad der sker derefter:
      Fejler lint, committes intet; filen rettes på `main`, og jobbet køres
      igen. En app, der aldrig har set [reglerne](#regler-for-compose-filen),
      kan få en rød release her — kør scriptet lokalt først.
-   - Committer som `github-actions[bot]` med beskeden
+   - Committer som `github-actions[bot]` — eller som appen, når kalderen
+     sender de to app-secrets — med beskeden
      `deploy(<app>): <service> -> 1.2.3` — ved flere services
      `deploy(<app>): web, worker -> 1.2.3`, kun med dem, der blev ændret — og
      pusher til `main`. Ved konflikt hentes `main` igen, op til tre gange.
@@ -378,7 +399,9 @@ Hvad der sker derefter:
    først da.
 
 Den deploy-commit, workflowet laver, bygger ikke noget nyt. Der bygges kun ved
-tag-push, og `GITHUB_TOKEN` udløser ikke nye kørsler.
+tag-push, og `GITHUB_TOKEN` udløser ikke nye kørsler. Pushes der som app, kan
+commit'en godt udløse workflows, der lytter på push til `main` — men bygningen
+kører stadig kun på tags, så der er ingen løkke.
 
 ## Tilbagerulning
 
@@ -510,22 +533,31 @@ ruleset, afvises pushet, og deploy-jobbet fejler med:
 > gren. Se afsnittet "Hvis main beskyttes" i README for
 > HJK-Automatisering/workflow.
 
-Tre veje, i den rækkefølge de bør overvejes. Ingen af dem er implementeret, og
-det er med vilje: der er intet behov i dag, og kode uden brug rådner.
+Tre veje, i den rækkefølge de bør overvejes.
 
 **a) Bypass-aktør i rulesettet.** Tilføj GitHub Actions som *bypass actor* på
 rulesettet for `main`. Så gælder reglerne stadig for mennesker, men workflowets
-push går igennem. Intet ændres i workflows eller kaldere. Det er den enkleste
-løsning, og den rækker til krav om PR og reviews.
+push går igennem. Intet ændres i workflows eller kaldere. **Virker kun for
+rulesets på repo-niveau:** i organisationen afviser GitHub den indbyggede
+Actions-app som bypass-aktør (API'et svarer 422, og appen kan ikke installeres
+manuelt — efterprøvet 2026-11-25). Gå så til (b).
 
-**b) GitHub App-token.** Rækker (a) ikke — fx fordi rulesettet er sat på
-organisationsniveau og ikke må have bypass — så opret en GitHub App med
-`contents: write` på de berørte repos, og hent et kortlivet token i
-deploy-jobbet med `actions/create-github-app-token` (SHA-pinnet som alle andre
-actions her). Det kræver, at `deploy-update.yaml` får en `secrets:`-blok med
-app-id og private key, at kalderne sender dem med, og at hemmelighederne
-oprettes som organisationshemmeligheder. Det er en kontraktudvidelse og hører
-til en opgave.
+**b) GitHub App-token.** Implementeret som de to valgfrie secrets på
+`deploy-update.yaml` — se [kontraktafsnittet](#deploy-updateyaml). Opskriften:
+
+1. Opret en GitHub App i organisationen med **Contents: Read and write** og
+   ingen andre rettigheder, og installér den kun på de berørte repos.
+2. Læg app-id og den private nøgle som organisationshemmeligheder
+   (`DEPLOY_BOT_APP_ID` og `DEPLOY_BOT_PRIVATE_KEY`), delt med netop de repos.
+3. Sæt appen på rulesettets bypass-liste, med tilstanden *always* — pushet er
+   direkte og kan ikke nøjes med en pull request-fritagelse.
+4. Send de to secrets eksplicit fra kalderens deploy-job, som vist
+   udkommenteret i [caller-eksemplet](#caller-eksempel). Aldrig
+   `secrets: inherit`.
+
+Deploy-commit'en står derefter som appen i historikken. Bemærk, at et push med
+et app-token — modsat `GITHUB_TOKEN` — udløser workflows, der lytter på push
+til `main`; der bygges stadig kun ved tag-push, så det giver ingen byggeløkke.
 
 **c) Signerede commits.** Kræver rulesettet signerede commits, hjælper hverken
 (a) eller (b): et git-push fra runneren er ikke signeret. Så skal commit-trinnet

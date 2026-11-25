@@ -52,6 +52,10 @@ jobs:
                   job='deploy-update',
                   inputs=('compose_path', 'service', 'image', 'digest', 'version'),
                   outputs=(),
+                  # Valgfrie secrets er ogsaa kontrakt: forsvinder en, fejler
+                  # kaldere der sender den - bliver en paakraevet, fejler alle
+                  # dem der ikke goer.
+                  valgfrie_secrets=('deploy_bot_app_id', 'deploy_bot_private_key'),
               ),
               '.github/workflows/compose-lint.yaml': dict(
                   job='compose-lint',
@@ -110,6 +114,15 @@ jobs:
                       fejl.append(f'output `{navn}` er forsvundet - kaldere der laeser '
                                   f'det faar en tom streng')
 
+              for navn in krav.get('valgfrie_secrets', ()):
+                  spec = (wc.get('secrets') or {}).get(navn)
+                  if spec is None:
+                      fejl.append(f'secret `{navn}` er forsvundet - kaldere der sender '
+                                  f'den vil fejle')
+                  elif (spec or {}).get('required'):
+                      fejl.append(f'secret `{navn}` er blevet paakraevet - kaldere der '
+                                  f'ikke sender den vil fejle')
+
               for env_navn in krav.get('pinnede_images', ()):
                   ref = str((job.get('env') or {}).get(env_navn, ''))
                   if not re.fullmatch(r'[\w./-]+:[\w.-]+@sha256:[0-9a-f]{64}', ref):
@@ -117,11 +130,13 @@ jobs:
                                   f'<image>:<version>@sha256:<digest>, men er {ref!r}. Et tag '
                                   f'alene kan flyttes til et andet program.')
 
-              # Bindestreger i inputnavne laeses som minus i GitHub-udtryk.
-              for navn in (wc.get('inputs') or {}):
-                  if '-' in navn:
-                      fejl.append(f'input `{navn}` indeholder bindestreg. '
-                                  f'I udtryk laeses den som minus - brug _ i stedet.')
+              # Bindestreger i input- og secretnavne laeses som minus i
+              # GitHub-udtryk.
+              for slags, navne in (('input', wc.get('inputs')), ('secret', wc.get('secrets'))):
+                  for navn in (navne or {}):
+                      if '-' in navn:
+                          fejl.append(f'{slags} `{navn}` indeholder bindestreg. '
+                                      f'I udtryk laeses den som minus - brug _ i stedet.')
 
               if fejl:
                   for f in fejl:
@@ -132,6 +147,8 @@ jobs:
               print(f'{path}: ok')
               print('  inputs :', ', '.join(sorted(wc.get('inputs') or {})))
               print('  outputs:', ', '.join(sorted(wc.get('outputs') or {})))
+              if wc.get('secrets'):
+                  print('  secrets:', ', '.join(sorted(wc['secrets'])))
 
           if alle_fejl:
               sys.exit(1)
