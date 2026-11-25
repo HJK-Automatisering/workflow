@@ -40,11 +40,23 @@ on:
         description: 'Versionen uden v, fx 1.2.3. Tag outputtet `version` fra docker-publish.yaml. Skrives som <image>:<version> i compose-filen.'
         type: string
         required: true
+    # Valgfrit app-push: er begge sat, mintes et kortlivet token, og checkout
+    # og push bruger det i stedet for GITHUB_TOKEN. Så kan committen passere
+    # et ruleset på main, hvor appen står på bypass-listen. Er ingen af dem
+    # sat, er adfærden præcis som uden dem. Kalderen sender dem eksplicit —
+    # aldrig `secrets: inherit`. Secretnavne bruger _ som inputnavnene.
+    secrets:
+      deploy_bot_app_id:
+        description: 'Id på den GitHub App der skal pushe til main. Sættes sammen med deploy_bot_private_key — kun den ene stopper jobbet.'
+        required: false
+      deploy_bot_private_key:
+        description: 'Appens private nøgle (hele .pem-indholdet). Sættes sammen med deploy_bot_app_id.'
+        required: false
 
-# Bemærk: ingen `concurrency` her, og ingen `secrets:`. Concurrency hører i
-# det kaldende workflow. GITHUB_TOKEN er automatisk tilgængeligt og rækker,
-# fordi `main` i de berørte repos ikke er beskyttet — se README-afsnittet
-# "Hvis `main` beskyttes", hvis det ændrer sig.
+# Bemærk: ingen `concurrency` her. Concurrency hører i det kaldende workflow.
+# GITHUB_TOKEN er automatisk tilgængeligt og rækker, fordi `main` i de berørte
+# repos ikke er beskyttet. Beskyttes main af et ruleset, sender kalderen de to
+# app-secrets ovenfor — se README-afsnittet "Hvis `main` beskyttes".
 
 jobs:
   deploy-update:
@@ -74,6 +86,11 @@ jobs:
       # Scriptet hentes fra dette repo i præcis den commit workflowet selv
       # kører fra, så workflow og script aldrig kan komme ud af takt.
       WORKFLOW_REPO_DIR: .workflow-repo
+      # Om der pushes som app afgøres af, om kalderen har sendt app-secrets.
+      # Flagene ligger her, så trinnene kan betinge på dem uden at gentage
+      # udtrykkene.
+      APP_ID_SET: ${{ secrets.deploy_bot_app_id != '' }}
+      APP_KEY_SET: ${{ secrets.deploy_bot_private_key != '' }}
 
     steps:
       # Allerførste trin, før der hentes noget. GitHub-udtryk har ikke regex,
@@ -93,6 +110,27 @@ jobs:
             echo "::notice::'${TAG}' er ikke et release-tag på formen vX.Y.Z og udrulles ikke. Imaget er bygget; compose-filen røres ikke."
           fi
 
+      # Begge app-secrets eller ingen. Én sat og én glemt er en slåfejl i
+      # kalderen, og et stille fald tilbage til GITHUB_TOKEN ville først vise
+      # sig som en afvist push med en vildledende besked.
+      - name: Tjek app-secrets
+        if: env.APP_ID_SET != env.APP_KEY_SET
+        run: |
+          echo "::error::Kun den ene af deploy_bot_app_id og deploy_bot_private_key er sat. Send begge for at pushe som app, eller ingen af dem for at pushe med GITHUB_TOKEN."
+          exit 1
+
+      # Kortlivet token for appen, som standard kun med adgang til det
+      # kaldende repo. Commit og push står så som appen, og et ruleset med
+      # appen på bypass-listen lukker den igennem.
+      # https://github.com/actions/create-github-app-token
+      - name: Mint app-token
+        if: steps.release.outputs.release == 'true' && env.APP_ID_SET == 'true' && env.APP_KEY_SET == 'true'
+        id: app_token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          app-id: ${{ secrets.deploy_bot_app_id }}
+          private-key: ${{ secrets.deploy_bot_private_key }}
+
       # main tjekkes ud — ikke tagget, som er en løsrevet commit. Fuld historik
       # fordi næste trin skal afgøre om tag-commit'en kan nås fra main.
       - name: Checkout main
@@ -101,6 +139,10 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          # App-tokenet når det findes, ellers GITHUB_TOKEN som hidtil.
+          # Checkout gemmer tokenet til senere git-kald, så push-trinnet
+          # nederst bruger samme identitet uden selv at røre det.
+          token: ${{ steps.app_token.outputs.token || github.token }}
 
       # Et tag på en feature-gren må ikke kunne sende et image i drift.
       - name: Tjek at tagget ligger på main
@@ -245,9 +287,11 @@ jobs:
             exit 1
           fi
 
-      # Forfatteren er GitHubs egen bot-identitet, så commit'en kan kendes fra
-      # menneskers i loggen. Push med GITHUB_TOKEN udløser ikke nye kørsler,
-      # og build kører kun på tags — så der er ingen løkke at værne imod.
+      # Forfatteren er GitHubs egen bot-identitet — eller appens, når kalderen
+      # har sendt app-secrets — så commit'en kan kendes fra menneskers i
+      # loggen. Push med GITHUB_TOKEN udløser ikke nye kørsler; push med et
+      # app-token gør, men build kører kun på tags, så deploy-commit'en kan
+      # stadig ikke starte en bygning.
       #
       # Konflikt på push betyder normalt at et andet deploy-kald (en anden
       # service) nåede først. Så hentes main igen og der prøves igen, højst tre
@@ -261,10 +305,22 @@ jobs:
           # De services scriptet faktisk ændrede, kommasepareret, i inputtets
           # rækkefølge. Kan være færre end inputtet, hvis nogle stod der allerede.
           SERVICES: ${{ steps.update.outputs.services }}
+          # Tomme når der ikke pushes som app. Selve pushet bruger tokenet fra
+          # checkout-trinnet; her bruges det kun til at slå bot-brugerens id op.
+          APP_TOKEN: ${{ steps.app_token.outputs.token }}
+          APP_SLUG: ${{ steps.app_token.outputs.app-slug }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n "${APP_TOKEN}" ]]; then
+            # Appens bot-bruger har et id, der skal stå i noreply-adressen,
+            # for at GitHub viser committen som appens.
+            bot_id=$(GH_TOKEN="${APP_TOKEN}" gh api "/users/${APP_SLUG}[bot]" --jq .id)
+            git config user.name "${APP_SLUG}[bot]"
+            git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          fi
           git add -- "${COMPOSE_PATH}"
           # `web,worker` skrives som `web, worker` i beskeden.
           git commit --quiet -F - <<MSG
@@ -284,7 +340,11 @@ jobs:
             fi
             echo "${output}"
             if grep -qiE '403|protected branch|GH006|GH013' <<<"${output}"; then
-              echo "::error::Push til main blev afvist. GITHUB_TOKEN kan ikke skrive til en beskyttet gren. Se afsnittet \"Hvis main beskyttes\" i README for HJK-Automatisering/workflow."
+              if [[ -n "${APP_TOKEN}" ]]; then
+                echo "::error::Push til main blev afvist, selvom der pushes som app. Tjek at appen er installeret på ${GITHUB_REPOSITORY} med Contents read/write, og at den står på rulesettets bypass-liste."
+              else
+                echo "::error::Push til main blev afvist. GITHUB_TOKEN kan ikke skrive til en beskyttet gren. Se afsnittet \"Hvis main beskyttes\" i README for HJK-Automatisering/workflow."
+              fi
               exit 1
             fi
             if [[ "${forsoeg}" -lt 3 ]]; then
