@@ -7,7 +7,7 @@ services:
       hjk.kontakt: "${CONTACT_EMAIL}"
     restart: unless-stopped
     networks:
-      nginx-proxy-manager_default:
+      proxy:
         aliases:
           - example-app
     mem_limit: 512m
@@ -17,5 +17,5 @@ services:
         max-file: "3"
 
 networks:
-  nginx-proxy-manager_default:
+  proxy:
     external: true

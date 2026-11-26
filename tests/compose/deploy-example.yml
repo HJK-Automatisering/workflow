@@ -18,7 +18,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
     networks:
       default:
-      nginx-proxy-manager_default:
+      proxy:
         aliases:
           - ba-example-app
     mem_limit: 512m
@@ -63,5 +63,5 @@ volumes:
   db-data:
 
 networks:
-  nginx-proxy-manager_default:
+  proxy:
     external: true

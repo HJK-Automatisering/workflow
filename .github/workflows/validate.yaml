@@ -424,10 +424,43 @@ jobs:
           if andre:
               fejl.append(f'{fil}: skal kun bryde `kontakt`, men gav ogsaa fejl paa {", ".join(andre)}')
 
+          # 6) Proxyens gamle netvaerksnavn: hver linje markeret `# fejl` i
+          #    eksemplet giver praecis én fejl paa `eksternt-netvaerk` med netop
+          #    den linje, beskeden siger hvad den skal rettes til, og at navnet
+          #    ikke kan undtages. Undtagelserne daekker intet. Ingen andre regler.
+          fil = Path('tests/compose/proxy-gammelt-navn.yml')
+          forventet = sorted(n for n, l in enumerate(fil.read_text(encoding='utf-8').splitlines(), 1)
+                             if l.rstrip().endswith('# fejl'))
+          rc, out = koer(fil)
+          errors = linjer(out, 'error')
+          if rc != 1:
+              fejl.append(f'{fil}: forventede exit 1, fik {rc}')
+          gamle = [l for l in errors if '[eksternt-netvaerk]' in l]
+          fundne = sorted(int(l.split(',line=', 1)[1].split('::', 1)[0])
+                          for l in gamle if ',line=' in l)
+          if fundne != forventet:
+              fejl.append(f'{fil}: forventede fejl paa `eksternt-netvaerk` paa linje {forventet}, '
+                          f'fik {fundne}: {gamle!r}')
+          for l in gamle:
+              if '`proxy`' not in l or 'kan ikke undtages' not in l:
+                  fejl.append(f'{fil}: beskeden siger ikke at navnet rettes til `proxy` og ikke kan '
+                              f'undtages: {l}')
+          if any('Undtaget' in l for l in linjer(out, 'warning')):
+              fejl.append(f'{fil}: en undtagelse daekkede det gamle navn')
+          if sum(1 for l in linjer(out, 'warning')
+                 if '[undtagelse]' in l and 'ikke kan undtages' in l) != 2:
+              fejl.append(f'{fil}: forventede to ::warning om undtagelser, der ikke kan daekke det '
+                          f'gamle navn')
+          andre = sorted({r for r in REGLER + ANDRE if r != 'eksternt-netvaerk'
+                          and any(f'[{r}]' in l for l in errors)})
+          if andre:
+              fejl.append(f'{fil}: skal kun bryde `eksternt-netvaerk`, men gav ogsaa fejl paa '
+                          f'{", ".join(andre)}')
+
           if fejl:
               for f in fejl:
                   print(f'::error file={script}::{f}')
               sys.exit(1)
           print(f'{script}: ok ({len(gode)} gode eksempler, {len(REGLER)} regler, gyldig og '
-                f'ugyldig undtagelse, kontaktperson med forkert vaerdi)')
+                f'ugyldig undtagelse, kontaktperson med forkert vaerdi, proxyens gamle navn)')
           PY

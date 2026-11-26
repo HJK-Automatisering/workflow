@@ -672,8 +672,8 @@ forkerte argumenter.
 | `logging` | `logging.options.max-size` eller `max-file` mangler |
 | `ports` | `ports:` findes. Al adgang går via Nginx Proxy Manager |
 | `container-name` | `container_name` findes. Navnet kolliderer på tværs af stacks |
-| `eksternt-netvaerk` | et netværk med `external: true` er ikke `nginx-proxy-manager_default` |
-| `alias` | en service på `nginx-proxy-manager_default` mangler et netværksalias. Ingen krav til aliasets form |
+| `eksternt-netvaerk` | et netværk med `external: true` er ikke `proxy`. Proxyens gamle navn `nginx-proxy-manager_default` fejler på hver linje, hvor det står — netværket på topniveau, et `name:`, der peger på det, og hver services henvisning — og beskeden siger, at det rettes til `proxy` |
+| `alias` | en service på `proxy` mangler et netværksalias. Ingen krav til aliasets form |
 | `unoedigt-netvaerk` | et netværk stacken selv opretter, har kun én service på sig. Det gælder også `default`, når en service har skrevet det under `networks:`. Hvert netværk optager et adresseområde på værten, og der er kun plads til omkring 31. Står servicen på andre netværk, fjernes det overflødige; står den kun på det ene, sættes `network_mode: bridge` |
 | `implicit-netvaerk` | en service har hverken `networks:` eller `network_mode`. Så sætter compose den på stackens `default`, og stacken opretter et netværk, som ingen har valgt. Vælg det: `network_mode: bridge` for en service, der kun taler ud, ellers de netværk den skal tale med andre services på — også `default`, skrevet ud |
 | `kontakt` | ingen service har labelen `hjk.kontakt`, eller en service har den med en anden værdi end præcis `${CONTACT_EMAIL}` — fx en fast adresse, en anden variabel eller `${CONTACT_EMAIL:-standard}`. Labelen fortæller docker-monitor, hvem der får stackens mails om sårbarheder og nedbrud; uden den får ingen dem. Én service med labelen dækker hele stacken. Adressen sættes som stackens variabel `CONTACT_EMAIL` i Portainer og står aldrig i repoet. Kun `labels:` på servicen tæller, ikke `deploy.labels` |
@@ -704,6 +704,9 @@ x-undtagelser:
 - En undtagelse, der ikke rammer nogen fejl, er død og giver en advarsel.
 - For `eksternt-netvaerk` og `unoedigt-netvaerk` er `service` netværkets navn. En committet
   `stack.env` eller `.env` kan ikke undtages.
+- Proxyens gamle netværksnavn `nginx-proxy-manager_default` kan ikke undtages.
+  Netværket lukkes, og en stack på det mister forbindelsen til proxyen. En
+  undtagelse for det dækker intet og giver en advarsel.
 - For `kontakt` er `service` den service, der skulle have båret labelen. Den
   undtager både en forkert værdi på den service og en stack helt uden
   kontaktperson. Uden labelen får stacken ingen mails fra docker-monitor.
@@ -744,7 +747,7 @@ services:
       # `default` er her kun fordi `db` også står på det. Har stacken én
       # service, fjernes linjen - ellers fejler `unoedigt-netvaerk`.
       default:
-      nginx-proxy-manager_default:
+      proxy:
         aliases:
           - <alias>
     mem_limit: 512m
@@ -774,6 +777,7 @@ volumes:
   db-data:
 
 networks:
-  nginx-proxy-manager_default:
+  # Proxyens netværk, oprettet på værten uden en stack.
+  proxy:
     external: true
 ```

@@ -1,0 +1,64 @@
+# Proxyens gamle netvaerksnavn. Hver linje markeret `# fejl` skal give
+# praecis én fejl paa `eksternt-netvaerk` med netop den linje: noeglen paa
+# topniveau, et `name:` der gemmer det gamle navn under noeglen `proxy`, og
+# hver services henvisning i mapping- og listeform. Ingen andre regler.
+# Begge undtagelser er gyldige, men daekker intet, fordi det gamle navn ikke
+# kan undtages - hverken med netvaerkets navn eller med servicens.
+x-undtagelser:
+  - service: nginx-proxy-manager_default
+    regel: eksternt-netvaerk
+    begrundelse: "Stacken er ikke flyttet endnu"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-11-26"
+  - service: web
+    regel: eksternt-netvaerk
+    begrundelse: "Stacken er ikke flyttet endnu"
+    godkendt-af: "Navn Navnesen"
+    dato: "2026-11-26"
+
+services:
+  web:
+    image: ghcr.io/hjk-automatisering/example-app:1.4.2
+    labels:
+      hjk.kontakt: "${CONTACT_EMAIL}"
+    restart: unless-stopped
+    networks:
+      nginx-proxy-manager_default:  # fejl
+        aliases:
+          - example-app
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: ghcr.io/hjk-automatisering/example-worker:1.4.2
+    restart: unless-stopped
+    networks:
+      - nginx-proxy-manager_default  # fejl
+    mem_limit: 256m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: ghcr.io/hjk-automatisering/example-api:1.4.2
+    restart: unless-stopped
+    networks:
+      proxy:
+        aliases:
+          - example-api
+    mem_limit: 256m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nginx-proxy-manager_default:  # fejl
+    external: true
+  proxy:
+    external: true
+    name: nginx-proxy-manager_default  # fejl
