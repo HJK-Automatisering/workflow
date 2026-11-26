@@ -14,7 +14,7 @@ services:
       KEYCLOAK_URL: ${KEYCLOAK_URL}
     networks:
       default:
-      nginx-proxy-manager_default:
+      proxy:
         aliases:
           - example-app
           - example-app-alt
@@ -61,5 +61,5 @@ volumes:
   cache-data:
 
 networks:
-  nginx-proxy-manager_default:
+  proxy:
     external: true

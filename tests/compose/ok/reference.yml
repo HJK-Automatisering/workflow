@@ -19,7 +19,7 @@ services:
       # `default` er her kun fordi `db` også står på det. Har stacken én
       # service, fjernes linjen - ellers fejler `unoedigt-netvaerk`.
       default:
-      nginx-proxy-manager_default:
+      proxy:
         aliases:
           - example-app
     mem_limit: 512m
@@ -49,5 +49,5 @@ volumes:
   db-data:
 
 networks:
-  nginx-proxy-manager_default:
+  proxy:
     external: true

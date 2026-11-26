@@ -90,7 +90,13 @@ REGLER = (
     'implicit-netvaerk', 'kontakt',
 )
 
-PROXY_NETVAERK = 'nginx-proxy-manager_default'
+PROXY_NETVAERK = 'proxy'
+# Proxyens netvaerk hed dette, foer det blev oprettet direkte paa vaerten.
+# Netvaerket hoerte til proxyens stak, saa stakken kunne ikke laases til
+# administratorer uden at lukke de andre stakke ude. Det gamle navn lukkes og
+# kan derfor ikke undtages: en stak paa det mister proxyen med en groen
+# udrulning.
+GAMMELT_PROXY_NETVAERK = 'nginx-proxy-manager_default'
 # docker-monitor laeser labelen og sender stackens kontaktperson sine mails.
 # Vaerdien er altid stackens variabel; en adresse hoerer aldrig i repoet.
 KONTAKT_LABEL = 'hjk.kontakt'
@@ -116,6 +122,7 @@ class Fund:
     line: int | None   # 1-baseret; None hvis der ikke er en linje at pege paa
     besked: str
     advarsel: bool = False
+    kan_undtages: bool = True
 
 
 def key_line(mapping, key, fallback: int | None = None) -> int | None:
@@ -354,8 +361,26 @@ def lint_service(navn: str, svc, svc_line: int | None) -> list[Fund]:
              'skal tale med andre services paa under `networks:`.',
              key_line(svc, 'networks'))
 
-    # alias
+    # eksternt-netvaerk: en henvisning til proxyens gamle navn. Hver linje
+    # faar sit eget fund, saa beskeden kan sige praecis hvad der skal rettes.
+    # Aliaset tjekkes ikke paa det gamle navn; én fejl pr. aarsag.
     nets = svc.get('networks')
+    if isinstance(nets, list):
+        gamle = [(i, item_line(nets, i, svc_line)) for i, n in enumerate(nets)
+                 if n == GAMMELT_PROXY_NETVAERK]
+    elif isinstance(nets, dict):
+        gamle = [(None, key_line(nets, n, svc_line)) for n in nets
+                 if str(n) == GAMMELT_PROXY_NETVAERK]
+    else:
+        gamle = []
+    for _, line in gamle:
+        fund.append(Fund('eksternt-netvaerk', navn, line,
+                         f'henviser til `{GAMMELT_PROXY_NETVAERK}`, som er omdoebt til '
+                         f'`{PROXY_NETVAERK}`. Ret `{GAMMELT_PROXY_NETVAERK}` til `{PROXY_NETVAERK}` '
+                         f'paa denne linje. Det gamle navn kan ikke undtages.',
+                         kan_undtages=False))
+
+    # alias
     if isinstance(nets, list):
         for i, net in enumerate(nets):
             if net == PROXY_NETVAERK:
@@ -379,14 +404,36 @@ def lint_netvaerk(doc) -> list[Fund]:
     if not isinstance(netvaerk, dict):
         return fund
     for navn, spec in netvaerk.items():
+        # Proxyens gamle navn som noegle, uanset hvad der staar under den.
+        if str(navn) == GAMMELT_PROXY_NETVAERK:
+            fund.append(Fund('eksternt-netvaerk', str(navn), key_line(netvaerk, navn),
+                             f'proxyens netvaerk er omdoebt fra `{GAMMELT_PROXY_NETVAERK}` til '
+                             f'`{PROXY_NETVAERK}`. Ret `{GAMMELT_PROXY_NETVAERK}:` til '
+                             f'`{PROXY_NETVAERK}:` paa denne linje, og ret ogsaa servicernes '
+                             f'henvisninger. Det gamle navn kan ikke undtages.',
+                             kan_undtages=False))
+            continue
         if not isinstance(spec, dict):
             continue
         external = spec.get('external')
-        # `external: {name: x}` er den gamle form; den taeller ogsaa som ekstern.
-        if (er_sand(external) or isinstance(external, dict)) and str(navn) != PROXY_NETVAERK:
-            fund.append(Fund('eksternt-netvaerk', str(navn), key_line(netvaerk, navn),
-                             f'er et eksternt netvaerk. Kun `{PROXY_NETVAERK}` maa vaere eksternt; '
-                             f'alle andre netvaerk hoerer til stacken selv.'))
+        # Det gamle navn kan ogsaa gemme sig i `name:` - ogsaa under en noegle,
+        # der hedder `proxy`. `external: {name: x}` er den gamle form.
+        for kilde in (spec, external):
+            if isinstance(kilde, dict) and str(kilde.get('name')) == GAMMELT_PROXY_NETVAERK:
+                fund.append(Fund('eksternt-netvaerk', str(navn),
+                                 key_line(kilde, 'name', key_line(netvaerk, navn)),
+                                 f'peger paa `{GAMMELT_PROXY_NETVAERK}` med `name:`. Proxyens '
+                                 f'netvaerk er omdoebt til `{PROXY_NETVAERK}`. Skriv netvaerket som '
+                                 f'`{PROXY_NETVAERK}:` med `external: true` og fjern `name:` paa denne '
+                                 f'linje. Det gamle navn kan ikke undtages.',
+                                 kan_undtages=False))
+                break
+        else:
+            # `external: {name: x}` er den gamle form; den taeller ogsaa som ekstern.
+            if (er_sand(external) or isinstance(external, dict)) and str(navn) != PROXY_NETVAERK:
+                fund.append(Fund('eksternt-netvaerk', str(navn), key_line(netvaerk, navn),
+                                 f'er et eksternt netvaerk. Kun `{PROXY_NETVAERK}` maa vaere '
+                                 f'eksternt; alle andre netvaerk hoerer til stacken selv.'))
     return fund
 
 
@@ -596,9 +643,10 @@ def daekker(f: Fund, regel: str, service: str, tjenester: set[str]) -> bool:
     Fundet for en stack uden kontaktperson har ingen service, fordi én label
     daekker hele stacken. Det undtages med en hvilken som helst service i
     filen - den der skulle have baaret labelen. En slaafejl i navnet daekker
-    intet, saa undtagelsen meldes doed.
+    intet, saa undtagelsen meldes doed. Et fund der ikke kan undtages, fx
+    proxyens gamle netvaerksnavn, daekkes aldrig.
     """
-    if f.regel != regel or f.advarsel:
+    if f.regel != regel or f.advarsel or not f.kan_undtages:
         return False
     if f.emne == service:
         return True
@@ -663,7 +711,12 @@ def anvend_undtagelser(doc, fund: list[Fund], tjenester: set[str] = frozenset())
                 f.advarsel = True
                 f.besked += f' Undtaget: godkendt af {godkendt_af.strip()} den {dato.isoformat()}.'
                 ramt = True
-        if not ramt:
+        spaerret = any(f.regel == regel and f.emne == service and not f.kan_undtages for f in fund)
+        if not ramt and spaerret:
+            fund.append(Fund('undtagelse', None, line,
+                             f'undtagelsen {emne} daekker intet, fordi fejlen ikke kan undtages. '
+                             f'Ret fejlen og fjern undtagelsen.', advarsel=True))
+        elif not ramt:
             fund.append(Fund('undtagelse', None, line,
                              f'undtagelsen {emne} daekker ingen fejl og kan fjernes.', advarsel=True))
         if i_dag - dato > UNDTAGELSE_MAKS_ALDER:
