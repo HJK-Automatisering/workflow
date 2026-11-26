@@ -51,6 +51,7 @@ ellers fyldes `docs/tasks/` med halve idéer.>
 | task-0008 | Sårbarhedsscanning med trivy før push i docker-publish | bygget |
 | task-0009 | compose-lint: stackens kontaktperson i labelen hjk.kontakt | bygget |
 | task-0010 | deploy-update kan pushe som GitHub App | bygget |
+| task-0011 | compose-lint: proxyens netværk hedder proxy | bygget |
 
 <`Udfald` er `bygget` eller `afvist`. Flyt hertil når architect har vurderet
 opgaven — ikke når udrulningen er sket; udrulning er ikke en status.
