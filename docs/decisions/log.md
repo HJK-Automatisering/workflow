@@ -10,6 +10,7 @@ Her hører også **afvisninger**: et fund der ikke bliver en opgave, skal have s
 
 | Dato | Nr. | Beslutning | Begrundelse | Rolle |
 |---|---|---|---|---|
+| 2026-11-27 | — | Repoets egen kontrakt er opdateret fra version 29 til 30 | Kopien var ordret version 29 uden afvigelser, efterprøvet med diff mod skabelonen. Nyt er afsnittet om dokumentet til I-sikkerhed, `docs/sikkerhed.md`; repoet har intet, så det står som emne på BOARD. Mennesket bad om opdateringen | architect |
 | 2026-11-26 | task-0011 | `v1.8.0` udgivet på `093237f`, og `v1` flyttet dertil | Svar fra mennesket efter test af grenen og efter at `proxy` er sat public i Portainer. Stramning udgivet på `v1` som besluttet. Kaldere med `nginx-proxy-manager_default` får en rød udrulning, til linjen er rettet til `proxy`. Valideringen grøn på `main` før tagget | architect |
 | 2026-11-26 | task-0011 | Afsluttet som bygget | Mennesket har testet grenen. Selvtesten er grøn lokalt, og ni lokale kalderkloner bliver røde, alle kun på det gamle navn. Fra Portainer meldes, at `proxy` er sat public, så alle brugere kan tilgå det. Udgivelsen er stadig menneskets beslutning | architect |
 | 2026-11-26 | task-0011 | Opgaven har nummeret `task-0011` og udgivelsen `v1.8.0` | Opgaven blev oprettet som `task-0010` på en lokal `main`, der var bagud. `task-0010` (deploy-bot-push) og `v1.7.0` var allerede taget på `origin/main`. Numre genbruges aldrig, og grenen var ikke pushet | architect |

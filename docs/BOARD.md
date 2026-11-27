@@ -29,6 +29,7 @@ eller nummeret på den rapport opgaven kom af.>
 
 | Emne |
 |---|
+| Dokument til I-sikkerhed for dette repo, eller afvis det som ikke relevant |
 | Lokal validering af workflows, så `validate.yaml`s script kan køres uden GitHub Actions |
 | env-fil-reglen: compose-filens mappe skal komme fra git selv, så symlinks og junctions giver en advarsel og ikke et crash |
 | Selvtest i `validate.yaml` af env-fil-reglens afgrænsning til compose-filens mappe |
