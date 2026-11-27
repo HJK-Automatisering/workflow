@@ -1,5 +1,5 @@
 ---
-kontrakt-version: 29
+kontrakt-version: 30
 ---
 
 # AGENTS.md — fælles kontrakt
@@ -25,8 +25,8 @@ Ved konflikt: rollefilen bestemmer *hvad* der skal laves, denne fil bestemmer *h
 
 | Rolle | Kører | Kaldes af | Afleverer |
 |---|---|---|---|
-| `kickoff` | i menneskets tråd | mennesket, én gang pr. projekt | `docs/projekt.md`, første `README.md`, skelet, kontrakt |
-| `architect` | i menneskets tråd | mennesket | opgaver i `docs/tasks/`, og `README.md` |
+| `kickoff` | i menneskets tråd | mennesket, én gang pr. projekt | `docs/projekt.md`, første `README.md`, første `docs/sikkerhed.md`, skelet, kontrakt |
+| `architect` | i menneskets tråd | mennesket | opgaver i `docs/tasks/`, `README.md` og `docs/sikkerhed.md` |
 | `developer` | agent | `architect` | kode + note i opgavefilen |
 | `tester` | agent | `architect` | rapport i `docs/tests/` |
 | `security` | agent | `architect` | rapport i `docs/securities/` |
@@ -158,6 +158,7 @@ Derefter, i din **første** besked, før du arbejder: skriv i én linje hvad du 
 | `docs/BOARD.md` | `architect` | alle | Tilstandsrapport — hvad er åbent |
 | `docs/projekt.md` | `kickoff` | alle | Projektets formål, stak og rammer |
 | `README.md` | `architect` (første udgave: `kickoff`) | mennesker | Hvad projektet gør, og hvordan man kommer i gang. Se `## README` |
+| `docs/sikkerhed.md` | `architect` (første udgave: `kickoff`) | I-sikkerhed | Hvad løsningen gør, hvilke data den rører, hvor den kører, og hvem der har adgang. Se `## Dokumentet til I-sikkerhed` |
 | `docs/tasks/task-NNNN-slug.md` | `architect` (+ `developer`, se nedenfor) | `developer` | Én opgave: hvad, hvorfor, færdig når |
 | `docs/tests/test-NNNN-slug.md` | `tester` | `architect` | Hvad blev prøvet, og hvad holdt ikke |
 | `docs/securities/security-NNNN-slug.md` | `security` | `architect` | Sikkerhedsfund |
@@ -656,6 +657,60 @@ Reglerne for værdien, og hvad stakkens ejer får, står i `README.md` i
 
 **Står der en stak i drift uden labelen:** sig det, og lad det blive en
 opgave. Ret det ikke i tavshed.
+
+## Dokumentet til I-sikkerhed
+
+Gælder hvert projekt.
+
+`docs/sikkerhed.md` beskriver løsningen til I-sikkerhed, organisationens enhed
+for informationssikkerhed. Det er dokumentet der sendes, når nogen henvender sig
+til dem om løsningen: før den tages i brug, når den ændres, og når de spørger.
+**Det skal kunne sendes som det står**, uden at nogen skriver det om først.
+
+Skabelonen ligger i plugin'et, som `sikkerhed.md` i `kickoff`s skill-mappe. Den
+udfyldes; den kopieres ikke ordret.
+
+- **Det beskriver opsætningen, ikke navnene.** *Egen SQL Server*, *egen stak i
+  Portainer*, *dedikeret tjenestebruger med læseadgang*, *bag Authentik*. Aldrig
+  et servernavn, databasenavn, brugernavn, en intern adresse eller en IP-adresse.
+  Det er reglen fra `## Værdier hører i .env`, og dokumentet er ingen undtagelse,
+  heller ikke fordi modtageren er I-sikkerhed. Skal de bruge et navn, får de det
+  af kontaktpersonen.
+- **Det nævner ingen person.** Kontaktpersonen er den adresse der er sat som
+  `CONTACT_EMAIL` på stakken; se `## En stak og dens kontaktperson`.
+- **Det beskriver ikke svagheder.** Fund og deres status står i
+  `docs/securities/` og forlader ikke repoet. Dokumentet siger kun hvornår der
+  er lavet en sikkerhedsgennemgang, og hvad den dækkede.
+- **Dansk, i almindeligt sprog**, til en læser der kender informationssikkerhed,
+  men ikke koden. Ingen navne fra koden.
+- **Hvert afsnit udfyldes.** Står svaret ikke at finde, skrives *Ikke afklaret*,
+  og det bliver et emne på BOARD. Gælder et afsnit ikke, skrives *Ikke relevant*
+  og én linje om hvorfor. Et tomt afsnit kan ikke skelnes fra et glemt.
+- **Det passer med det der kører.** Et dokument der beskriver en opsætning der
+  ikke findes længere, er værre end et der mangler: det bliver sendt og troet på.
+  `opdateret` i frontmatter flyttes, hver gang indholdet ændres.
+
+**Hvem gør hvad:**
+
+- `kickoff` skriver den første udgave i et tomt projekt, ud fra interviewet. Den
+  spørger ikke ekstra for at fylde det ud; det interviewet ikke afklarede, står
+  som *Ikke afklaret*. I et projekt der allerede kører, skriver den et emne på
+  BOARD i stedet.
+- `architect` ejer dokumentet. Den retter det på opgavens gren, før grenen
+  lukkes, når opgaven har ændret data, systemer løsningen taler med, drift,
+  adgang, logning eller backup. Mangler dokumentet, eller står der *Ikke
+  afklaret* i det, er det et emne; dokumentet skrives i én omgang, når mennesket
+  siger til, og det der ikke kan læses i koden, spørger den om.
+- `developer` rører det ikke. Nye data, nye systemer, nye tjenestebrugere og ny
+  logning skriver den i sine noter, så `architect` har dem.
+- `reviewer` melder det som fund, når en ændring gør dokumentet forkert, når det
+  nævner et navn der hører i `.env`, eller når det er skrevet til en udvikler.
+- `security` holder dokumentet op mod koden og compose-filen før en udrulning.
+  Mangler det, siger det noget koden modsiger, eller står der et navn, en person
+  eller en svaghed i det, er det et fund.
+
+**Står der et projekt i drift uden dokumentet:** sig det, og lad det blive et
+emne. Skriv det ikke i forbifarten.
 
 ## Versionering
 
